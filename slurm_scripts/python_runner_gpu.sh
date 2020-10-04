@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+sbatch -J $1 --mail-type=FAIL --mail-user=omer.ronen@mail.huji.ac.il --gres gpu:1 -o $1.out --mem=200g --time=100:0:0 -c8 /cs/zbio/orzuk/projects/ContactMaps/src/Periscope/slurm_scripts/python.sh -m periscope.$2 "${@:3}"

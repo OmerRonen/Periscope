@@ -1,0 +1,48 @@
+net:
+  architecture:
+    arch: conv
+    conv:
+      dilation: 1
+      filter_shape:
+      - &id001 !!python/tuple
+        - 7
+        - 7
+      - *id001
+      - *id001
+      - *id001
+      - *id001
+      - *id001
+      - *id001
+      - &id002 !!python/tuple
+        - 10
+        - 10
+      - *id002
+      - *id002
+      - *id002
+      - *id002
+      - *id002
+      - *id002
+      num_bins: 2
+      num_channels: 8
+      num_layers: 12
+    references_resnet:
+      num_res_filters: 10
+      shared_weights: true
+  data:
+    conv_features:
+    - evfold
+    - reference_dm
+    k: 10
+    resnet_features: []
+train:
+  batch_size: 1
+  epochs: 20
+  eval_dataset: eval
+  in_train:
+    save_checkpoints_steps: 2500
+    save_summary_steps: 500
+  opt:
+    lr: 0.0001
+  path: /cs/zbio/orzuk/projects/ContactMaps/src/Periscope/models/baseline
+  test_dataset: pfam
+  train_dataset: train

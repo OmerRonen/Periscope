@@ -1,0 +1,15 @@
+Bio
+pydrive
+matplotlib
+ipython
+biopython
+evcouplings
+pandas
+numpy
+pytest
+deepdiff
+tensorflow==1.14.0
+image
+Pillow==7.1.2
+sklearn
+pdb-tools
