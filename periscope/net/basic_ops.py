@@ -500,6 +500,7 @@ def _single_structure_op(dm,
     with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
 
         if not deep_projection:
+            LOGGER.info('Using linear projection')
             aa_proj_ref = tf.get_variable(
                 "AA_Ref",
                 shape=(prot_dim, k),
