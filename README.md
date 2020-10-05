@@ -7,6 +7,7 @@ The following programs should be installed and added to PATH environment variabl
 - HHBlits (3.0.3)
 - Evfold
 - CCMpred  
+- Clustal Omega (1.2.4)
 
 Additionaly all packages in the `requiremetns.txt` file should be installed
 
