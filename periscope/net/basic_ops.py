@@ -464,6 +464,7 @@ def multi_structures_op_2(dms, seq_refs, seq_target, evfold, conv_params, ccmpre
 
 
 def _projection_op(x, k, n, name):
+    LOGGER.info('Using deep projection')
     with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
         for i in range(n):
             x = tf.layers.dense(x, k, tf.nn.relu, name=f'{name}_{i}')
