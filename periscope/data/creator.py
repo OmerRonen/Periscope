@@ -52,7 +52,6 @@ class DataCreator:
         check_path(self._msa_data_path)
         self.target = target
         self._n_refs = n_refs
-        LOGGER.info(f'N refs is {self._n_refs}')
         self.metadata = self._get_metadata()
         self.has_refs = self.sorted_structures is not None
         self.has_refs_new = len(self._get_refs_aln()) > 1
@@ -358,6 +357,8 @@ class DataCreator:
                 ccmpred_mat_file = get_target_ccmpred_file(self.target)
 
                 ccmpred_cmd = ['ccmpred', tmp2.name, ccmpred_mat_file]
+
+                subprocess.call('unlimit', shell=True)
                 p = subprocess.run(ccmpred_cmd)
                 if p.returncode != 0:
                     LOGGER.info(f'CCMpred failed for {self.target}')
@@ -380,6 +381,7 @@ class DataCreator:
 
         cmd = f'plmc -o {file_params} -c {file_ec} -le 16.0 -m {500} -lh 0.01  -g -f {self.target} {file_msa}'
 
+        subprocess.call('unlimit', shell=True)
         subprocess.call(cmd, shell=True)
 
     def _reformat_old_file(self):
