@@ -12,7 +12,16 @@ The following programs should be installed and added to PATH environment variabl
 Additionaly all packages in the `requiremetns.txt` file should be installed
 
 # Interface
-To predict a contact map for protein `5bu3D` using our method you need to clone to this repository
+
+## Predictions
+To predict a contact map for protein `5bu3D` using our method you need to clone to this repository and use:
 ```python
 python3 -m periscope.tools.predict nips_model "5bu3D" -o  "5bu3D.csv"
 ```
+
+## Training
+To train a new model (named MODEL_NAME) use
+```python
+python3 -m periscope.tools.trainer -n MODEL_NAME -t 
+```
+You can also specify the hyperparameters through the `params.yaml` file on this repository
