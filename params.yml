@@ -1,0 +1,28 @@
+net:
+  architecture:
+    arch: multi_structure_ccmpred
+    conv:
+      dilation: 1
+      filter_shape: !!python/tuple
+      - 7
+      - 7
+      num_bins: 2
+      num_channels: 8
+      num_layers: 30
+    ms:
+      deep_projection: false
+  data:
+    conv_features: []
+    k: 10
+train:
+  batch_size: 1
+  epochs: 20
+  eval_dataset: eval
+  in_train:
+    save_checkpoints_steps: 2500
+    save_summary_steps: 500
+  opt:
+    lr: 0.0001
+  path: models/model
+  test_dataset: pfam
+  train_dataset: train

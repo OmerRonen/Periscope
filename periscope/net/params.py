@@ -63,7 +63,6 @@ class NetParams:
 
         Args:
             conv_features (list[str]): conv_features names
-            resnet_features (list[str]): reset features names
             name (str): model name
             arch (str): name of the net arch
             batch_size (int): batch size for training
@@ -73,9 +72,7 @@ class NetParams:
             num_channels (int): number of channels for every conv operation
             filter_shape (Union[tuple[int, int], list[tuple]]): shape of the convolution filter
             dilation (Union[int, list[int]): dilation factor for conv layer
-            shared_weights (bool): if true we share weights on residual layers
-            log_pssm (bool): if true we take log of pssm data
-            num_res_filters (int): number of filters to use on residual layers
+            deep_projection (bool): if true we use a deep operation for projection, othersie linear.
             k (int): number of msa structures to sample
             lr (float): learning rate for the optimizer
             save_summary_steps (int): Number of steps between two summary saves

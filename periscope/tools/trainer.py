@@ -7,12 +7,12 @@ import tensorflow as tf
 
 from ..net.params import NetParams
 from ..utils.drive import upload_folder
-from ..analysis.analyzer import save_model_predictions, write_model_analysis
+from ..analysis.analyzer import save_model_predictions
 from ..net.contact_map import ContactMapEstimator
 from ..utils.constants import PATHS
 
 LOGGER = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.CRITICAL)
 logger = tf.get_logger()
 
 logger.propagate = False
@@ -41,7 +41,7 @@ def main():
     eval_dataset = args.eval_dataset
 
     params = NetParams(os.path.join(periscope_path,
-                                    'slurm_scripts/params.yml')).params
+                                    'params.yml')).params
 
     if model_name in os.listdir(os.path.join(periscope_path, 'models')):
         params = NetParams(
