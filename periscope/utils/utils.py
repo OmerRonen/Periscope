@@ -17,7 +17,7 @@ import pickle
 import time
 import logging
 
-from .constants import PATHS, LOCAL, DATASETS, DATASETS_FULL
+from .constants import PATHS, LOCAL, DATASETS, DATASETS_FULL, N_REFS
 
 LOGGER = logging.getLogger(__name__)
 warnings.simplefilter('ignore', yaml.YAMLLoadWarning)
@@ -181,17 +181,6 @@ def run_clustalo(sequences, fname, target=None, structures=None):
 
         aln_seqs = read_fasta(f'{fname}', full=True)[0:len(sequences)]
         SeqIO.write(aln_seqs, fname, 'fasta')
-
-
-def run_hhalign(sequences, fname):
-    msa_file = get_a3m_fname(sequences[0].id)
-    SeqIO.write(sequences, fname, 'fasta')
-    reformat = f'reformat.pl fas a3m {fname} {fname}'
-    subprocess.run(reformat, shell=True)
-    cmd = f'hhalign -i {fname} -t {msa_file} -oa3m pick.a3m -v 2'
-    subprocess.run(cmd, shell=True)
-    reformat = f'reformat.pl {fname}.a3m {fname}.fasta'
-    subprocess.run(reformat, shell=True)
 
 
 def create_sifts_mapping():
@@ -538,6 +527,12 @@ def get_aln_fasta(target):
     target_hhblits_path = os.path.join(get_target_path(target), 'hhblits')
     fasta_file = os.path.join(target_hhblits_path, f'{target}_v2.fasta')
     return fasta_file
+
+
+def get_clustalo_aln(target, n_refs=N_REFS):
+    features_path = os.path.join(get_target_path(target), 'features')
+    clustalo_path = os.path.join(features_path, 'clustalo')
+    return os.path.join(clustalo_path, f'aln_r_{n_refs}.fasta')
 
 
 def get_a3m_fname(target):

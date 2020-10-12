@@ -60,6 +60,10 @@ class DataCreator:
         if not os.path.isfile(self.fasta_fname):
             self._write_fasta()
 
+    @property
+    def msa_length(self):
+        return len(self._parse_msa())
+
     def generate_data(self):
         if self._is_broken or self.recreated:
             return
@@ -1264,9 +1268,12 @@ class DataCreator:
             msa_seq = "".join(list(ec_sorted_i.A_i) + list(last_msa_string))
             return msa_seq
 
-        self._run_evfold()
+        ec_file = os.path.join(evfold_path, evfold_file)
 
-        raw_ec = read_raw_ec_file(os.path.join(evfold_path, evfold_file))
+        if not os.path.isfile(ec_file):
+            self._run_evfold()
+
+        raw_ec = read_raw_ec_file(ec_file)
         msa_seq = _get_msa_seq_ec(raw_ec)
         is_valid = msa_seq == pdb_seq
 
@@ -1387,9 +1394,6 @@ class DataCreator:
         if hasattr(self, '_aln'):
             return
 
-        msa_file = get_aln_fasta(self.target)
-        if not os.path.isfile(msa_file):
-            self._run_hhblits()
         clustalo_path = os.path.join(self._msa_data_path, 'clustalo')
         check_path(clustalo_path)
         fname = os.path.join(clustalo_path, f'aln_r_{self._n_refs}.fasta')
@@ -1401,6 +1405,10 @@ class DataCreator:
             LOGGER.info(f"Reading {fname}")
             self._aln = read_fasta(fname, True)
             return
+
+        msa_file = get_aln_fasta(self.target)
+        if not os.path.isfile(msa_file):
+            self._run_hhblits()
 
         structures = self._get_k_closest_references()
         if structures is None:
