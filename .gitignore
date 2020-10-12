@@ -8,4 +8,4 @@ data/
 models/nips_retrain/
 models/deep_proj/
  __pycache__/
- *.pyc
+*.pyc
