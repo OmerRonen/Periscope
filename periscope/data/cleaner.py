@@ -5,8 +5,9 @@ import logging
 
 from .creator import DataCreator
 from .seeker import DataSeeker
-from ..utils.constants import PATHS
-from ..utils.utils import check_path, get_pdb_fname, get_target_path, get_target_ccmpred_file, get_target_evfold_file
+from ..utils.constants import PATHS, DATASETS
+from ..utils.utils import check_path, get_pdb_fname, get_target_path, get_target_ccmpred_file, get_target_evfold_file, \
+    get_aln_fasta, get_clustalo_aln
 
 LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -35,26 +36,33 @@ def clean_pdb(target):
         _mv_protein(pdb_file)
 
 
-def clean_hhblits(target):
-    for folder in os.listdir(PATHS.hhblits):
-        if folder != 'a3m' and folder != 'fasta':
+def _remove_file(fname):
+    if os.path.isfile(fname):
+        LOGGER.info(f'Removing {fname}')
+        os.remove(fname)
+
+
+def clean_hhblits():
+    train = set(DATASETS.train) | set(DATASETS.eval)
+    test = set(DATASETS.pfam) | set(DATASETS.membrane) | set(DATASETS.cameo) | set(DATASETS.cameo41)
+    all_targets = train | test
+    for t in all_targets:
+        t_path = os.path.join(get_target_path(t), 'hhblits')
+        a3m_file = os.path.join(t_path, f'{t}.a3m')
+        a2m_file = os.path.join(t_path, f'{t}.a2m')
+
+        _remove_file(a3m_file)
+        _remove_file(a2m_file)
+    for t in train:
+        fasta_aln = get_aln_fasta(t)
+        clustalo_aln = get_clustalo_aln(t)
+        evfold_path = os.path.join(get_target_path(t), 'evfold')
+        evfold_params = os.path.join(evfold_path, f'{t}_2.params')
+        if not os.path.exists(evfold_path):
             continue
-        shutil.rmtree(os.path.join(PATHS.hhblits, folder))
-    a3m_files = os.listdir(os.path.join(PATHS.hhblits, 'a3m')) if target is None else [f'{target.a3m}']
-
-    for file in a3m_files:
-        target = file.split('.')[0]
-        dst_path = os.path.join(get_target_path(target), 'hhblits')
-        check_path(dst_path)
-        shutil.move(os.path.join(PATHS.hhblits, 'a3m', file), os.path.join(dst_path, file))
-
-    fasta_files = os.listdir(os.path.join(PATHS.hhblits, 'fasta')) if target is None else [f'{target.fasta}']
-
-    for file in fasta_files:
-        target = file.split('.')[0]
-        dst_path = os.path.join(get_target_path(target), 'hhblits')
-        check_path(dst_path)
-        shutil.move(os.path.join(PATHS.hhblits, 'fasta', file), os.path.join(dst_path, file))
+        if len(os.listdir(evfold_path)) > 1 and os.path.isfile(clustalo_aln):
+            _remove_file(fasta_aln)
+            _remove_file(evfold_params)
 
 
 def clean_structures(target):
@@ -65,7 +73,7 @@ def clean_structures(target):
         protein_path = os.path.join(PATHS.proteins, target[1:3], target, 'features')
         check_path(protein_path)
         struc_path = os.path.join(PATHS.msa_structures, target)
-        if not  os.path.exists(struc_path):
+        if not os.path.exists(struc_path):
             continue
         old_features = os.listdir(struc_path)
         for file in old_features:
@@ -142,7 +150,6 @@ def clean_query(target):
     hmm_files = hmm_files if target is None else [f'{target}.hhr']
     random.shuffle(hmm_files)
 
-
     for file in hmm_files:
         hh_path = os.path.join(get_target_path(file.split('.')[0]), 'hhblits')
         check_path(hh_path)
@@ -162,7 +169,7 @@ def clean(target=None):
     # clean_hhblits(target)
     # clean_sifts()
     # clean_structures(target)
-    clean_query(target)
+    clean_hhblits()
 
 
 def check_clean(target):
@@ -192,4 +199,3 @@ def check_clean(target):
     if 'structures_sorted.pkl' in old_features:
         assert dc.sorted_structures is not None
         assert ds.sorted_structures is not None
-

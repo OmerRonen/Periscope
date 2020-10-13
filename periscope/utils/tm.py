@@ -189,12 +189,18 @@ def _save_rr_file(model: ContactMapEstimator, full):
 def _get_raptor_ss3_txt(target, full=False):
     fasta_file = get_fasta_fname(target, full)
     a3m_aln = get_a3m_fname(target)
+
+    if not os.path.isfile(a3m_aln):
+        reformat = ['reformat.pl', get_aln_fasta(target), a3m_aln]
+        subprocess.run(reformat)
+
     tgt_file = os.path.join(PATHS.periscope, 'data', get_target_dataset(target), f'{target}.tgt')
     # with tempfile.NamedTemporaryFile(suffix='.a3m') as f:
     #     refor = f'reformat.pl {fasta_aln} {f.name}'
     #     subprocess.run(refor, shell=True)
     cmd = f'A3M_To_TGT -i {fasta_file} -I {a3m_aln} -o {tgt_file}'
     subprocess.run(cmd, shell=True, cwd=os.path.join(PATHS.src, 'TGT_Package'))
+    os.remove(a3m_aln)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         predict_property = os.path.join(PATHS.src, "Predict_Property", "Predict_Property.sh")
