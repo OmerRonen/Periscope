@@ -362,7 +362,6 @@ class DataCreator:
 
                 ccmpred_cmd = ['ccmpred', tmp2.name, ccmpred_mat_file]
 
-                subprocess.call('unlimit', shell=True)
                 p = subprocess.run(ccmpred_cmd)
                 if p.returncode != 0:
                     LOGGER.info(f'CCMpred failed for {self.target}')
@@ -385,7 +384,6 @@ class DataCreator:
 
         cmd = f'plmc -o {file_params} -c {file_ec} -le 16.0 -m {500} -lh 0.01  -g -f {self.target} {file_msa}'
 
-        subprocess.call('unlimit', shell=True)
         subprocess.call(cmd, shell=True)
 
     def _reformat_old_file(self):
@@ -1216,7 +1214,11 @@ class DataCreator:
 
         ccmpred_mat_file = get_target_ccmpred_file(self.target)
         if os.path.isfile(ccmpred_mat_file):
-            return np.loadtxt(ccmpred_mat_file)
+            ccmpred_mat = np.loadtxt(ccmpred_mat_file)
+            if ccmpred_mat.shape[0] != len(self.protein.str_seq):
+                self._run_ccmpred()
+                return
+            return ccmpred_mat
 
         success = self._run_ccmpred()
         if success:
@@ -1238,7 +1240,11 @@ class DataCreator:
         evfold_mat_path = os.path.join(evfold_path, evfold_mat_file)
 
         if os.path.isfile(evfold_mat_path):
-            return pkl_load(evfold_mat_path)
+            evfold_mat = pkl_load(evfold_mat_path)
+            if evfold_mat.shape[0] != len(self.protein.str_seq):
+                self._run_evfold()
+                return
+            return evfold_mat
 
         pdb_seq = "".join(list(self.protein.sequence))
 

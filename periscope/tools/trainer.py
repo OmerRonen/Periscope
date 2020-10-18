@@ -7,7 +7,7 @@ import tensorflow as tf
 
 from ..net.params import NetParams
 from ..utils.drive import upload_folder
-from ..analysis.analyzer import save_model_predictions
+from ..analysis.analyzer import save_model_predictions, save_model_analysis
 from ..net.contact_map import ContactMapEstimator
 from ..utils.constants import PATHS
 
@@ -58,7 +58,7 @@ def main():
         params['train']['test_dataset'] = eval_dataset
 
         model = ContactMapEstimator(params)
-        save_model_predictions(model)
+        save_model_analysis(model)
         # write_model_analysis(model=model, model_path=os.path.join(model.artifacts_path, eval_dataset),
         #                      model_name=model_name, dataset=eval_dataset, plot=args.plot)
 

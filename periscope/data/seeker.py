@@ -194,7 +194,10 @@ class DataSeeker:
 
         ccmpred_mat_file = get_target_ccmpred_file(self.target)
         if os.path.isfile(ccmpred_mat_file):
-            return np.loadtxt(ccmpred_mat_file)
+            ccmpred_mat = np.loadtxt(ccmpred_mat_file)
+            if ccmpred_mat.shape[0] != len(self.protein.str_seq):
+                return
+            return ccmpred_mat
 
         return
 
@@ -210,7 +213,8 @@ class DataSeeker:
 
         evfold_mat = pkl_load(evfold_mat_path)
         if evfold_mat is not None:
-            return evfold_mat
+            if evfold_mat.shape[0] == len(self.protein.str_seq):
+                return evfold_mat
 
         ec_file = os.path.join(evfold_path, evfold_file)
         if not os.path.isfile(ec_file):
