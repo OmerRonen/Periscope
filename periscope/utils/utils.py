@@ -12,7 +12,8 @@ from Bio.Seq import Seq
 from os import path
 from Bio import SeqIO
 from Bio.PDB.PDBParser import PDBParser
-from Bio.PDB import Polypeptide, is_aa
+from Bio.PDB import Polypeptide, is_aa, PDBIO, Select, PDBParser
+
 import pickle
 import time
 import logging
@@ -25,6 +26,17 @@ warnings.simplefilter('ignore', yaml.YAMLLoadWarning)
 MODELLER_VERSION = 4
 VERSION = 3
 
+
+def timeit(method):
+    def timed(*args, **kw):
+        ts = time.time()
+        result = method(*args, **kw)
+        te = time.time()
+
+        LOGGER.info('%r  %2.2f ms' % \
+                  (method.__name__, (te - ts) * 1000))
+        return result
+    return timed
 
 def read_raw_ec_file(filename, sort=True, score="cn"):
     """
@@ -71,12 +83,59 @@ def get_sotred_ec(raw_ec):
     return ec_sorted_i, ec_sorted_j, ec_no_na
 
 
-def get_modeller_pdb_file(target, n_struc=None, templates=False):
+def save_chain_pdb(target, fname, pdb_fname, ind, skip_chain=False, old=True):
+    pdb_parser = PDBParser(PERMISSIVE=1)
+    s = pdb_parser.get_structure(target[0:4], pdb_fname)
+    model = s[0]
+    chains = model.child_list
+    if len(chains) == 1 and chains[0].get_id() == ' ':
+        chains[0].id = target[-1]
+    io = PDBIO()
+    io.set_structure(s)
+    tmp_file = os.path.join(os.getcwd(), f'{target}_tmp.pdb')
+
+    class ChainSelect(Select):
+        def __init__(self, chain, skip_chain, old=True):
+            self._chain = chain
+            self._skip_chain = skip_chain
+            self._old = old
+
+        def accept_chain(self, chain):
+            if chain.id == self._chain or self._skip_chain:
+                return 1
+            else:
+                return 0
+
+        def accept_residue(self, residue):
+            if residue.full_id[3][0] == ' ' or residue.full_id[3][0] == 'H_MSE':
+                return 1
+            elif self._old and residue.full_id[3][0] != 'W':
+                return 1
+            else:
+                return 0
+
+    io.save(tmp_file, ChainSelect(target[4], skip_chain=skip_chain, old=old))
+    reres_cmd = f'pdb_reres -{ind} {tmp_file} > {fname}'
+    subprocess.call(reres_cmd, shell=True)
+    os.remove(tmp_file)
+
+    # if not skip_chain:
+    #     io.save(tmp_file, ChainSelect(target[4]))
+    #     reres_cmd = f'pdb_reres -{ind} {tmp_file} > {fname}'
+    #     subprocess.call(reres_cmd, shell=True)
+    #     os.remove(tmp_file)
+    # else:
+    #     shutil.copy(pdb_fname, fname)
+
+
+def get_modeller_pdb_file(target, n_struc=None, templates=False, sp=False):
     protein, chain = target[0:4], target[4]
 
     target_path = os.path.join(PATHS.modeller, protein + chain)
     if templates:
         target_path = os.path.join(PATHS.modeller, 'templates', protein + chain)
+    if sp:
+        target_path = os.path.join(PATHS.modeller, 'templates', 'sp', protein + chain)
 
     version = MODELLER_VERSION
 
@@ -508,6 +567,13 @@ def get_target_path(target, new=False):
 
 def get_pdb_fname(protein):
     return os.path.join(PATHS.data, 'pdb', protein[1:3], f'pdb{protein}.ent')
+
+
+def get_predicted_pdb(model, target, sswt=5, selectrr='2.0L'):
+    dataset = get_target_dataset(target)
+    outdir = os.path.join(model.path, f'cns_{sswt}_{selectrr.replace(".", "_")}', dataset, target)
+    predicted_pdb = os.path.join(outdir, 'stage1', f'{target}_model1.pdb')
+    return predicted_pdb
 
 
 def get_target_ccmpred_file(target):

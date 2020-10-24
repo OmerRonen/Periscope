@@ -18,6 +18,7 @@ def parse_args():
     parser.add_argument('-a', '--alignment', type=str)
     parser.add_argument('-t', '--templates', nargs='+')
     parser.add_argument('-n', '--structures', type=int)
+    parser.add_argument('-s', '--starting_point', type=str, default=None)
 
     return parser.parse_args()
 
@@ -56,6 +57,7 @@ def main():
     known = tuple(args.templates)
     check_pdb(target[0:4])
     n_structures = args.structures
+    starting_point = args.starting_point
     for t in args.templates:
         check_pdb(t[0:4])
 
@@ -68,7 +70,8 @@ def main():
     a = automodel(env,
                   alnfile=aln_file,  # alignment filename
                   knowns=known,  # codes of the templates
-                  sequence=target)  # code of the target
+                  sequence=target,
+                  inifile=starting_point)  # code of the target
     a.starting_model = 1  # index of the first model
     a.ending_model = n_structures  # index of the last model
     # (determines how many models to calculate)

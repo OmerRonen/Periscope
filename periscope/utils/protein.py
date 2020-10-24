@@ -19,11 +19,12 @@ LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 warnings.simplefilter('ignore', PDBConstructionWarning)
 
+
 class Protein:
     NAN_VALUE = -1
     _THRESHOLD = 8
 
-    def __init__(self, protein, chain, pdb_path=PATHS.pdb, modeller_n_struc=1, version=5):
+    def __init__(self, protein, chain, pdb_path=PATHS.pdb, modeller_n_struc=1, version=5, pdb_fname=None):
         self.VERSION = version
         self.protein = protein if type(protein) == str else protein.decode(
             "utf-8")
@@ -42,6 +43,9 @@ class Protein:
         self.pdb_fname = get_pdb_fname(self.protein)
         if self._is_modeller:
             self.pdb_fname = get_modeller_pdb_file(target, n_struc=modeller_n_struc, templates=True)
+
+        if pdb_fname is not None:
+            self.pdb_fname = pdb_fname
 
         if not os.path.exists(self.pdb_fname):
             if self._is_modeller:
@@ -77,7 +81,7 @@ class Protein:
         else:
             success = 1
 
-        if success!=0:
+        if success != 0:
             return
 
         check_path(os.path.join(PATHS.data, 'pdb', self.protein[1:3]))
@@ -206,9 +210,14 @@ class Protein:
 
     def get_chain_seq(self):
 
+        seq_file = os.path.join(self._target_dir, 'seq.pkl')
+        if os.path.isfile(seq_file):
+            return pkl_load(seq_file)
         residues = self._get_residues()
 
-        return np.array([self._get_one_letter(r) for r in residues])
+        seq = np.array([self._get_one_letter(r) for r in residues])
+        pkl_save(seq_file, seq)
+        return seq
 
         # target_seq_file = os.path.join(
         #     self._target_dir, 'target_sequence_v%s.pkl' % self.VERSION)
@@ -328,7 +337,6 @@ class Protein:
     @property
     def cm(self):
         return self._get_cm(self.dm)
-
 
 # class ProteinV0:
 #     NAN_VALUE = -1

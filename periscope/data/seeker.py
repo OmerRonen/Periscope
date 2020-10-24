@@ -213,8 +213,9 @@ class DataSeeker:
 
         evfold_mat = pkl_load(evfold_mat_path)
         if evfold_mat is not None:
-            if evfold_mat.shape[0] == len(self.protein.str_seq):
-                return evfold_mat
+            if evfold_mat.shape[0] != len(self.protein.str_seq):
+                return
+            return evfold_mat
 
         ec_file = os.path.join(evfold_path, evfold_file)
         if not os.path.isfile(ec_file):
