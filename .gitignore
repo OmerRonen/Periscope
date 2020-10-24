@@ -8,6 +8,7 @@ data/
 data/figures
 models/nips_retrain/
 models/deep_proj/
+models/conv_net/
  __pycache__/
 *.pyc
 *workspace.xml

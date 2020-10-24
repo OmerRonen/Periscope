@@ -767,12 +767,13 @@ def save_model_predictions(model: ContactMapEstimator, protein, outfile):
     sequence = list(Protein(protein[0:4], protein[4]).str_seq)
     pd.DataFrame(np.squeeze(predictions[protein]), columns=sequence, index=sequence).to_csv(outfile)
 
-# def save_model_predictions(model: ContactMapEstimator, proteins=None):
-#     predictions = get_model_predictions(model, proteins=proteins)['logits']
-#     if proteins is None:
-#         _get_top_category_accuracy_np(predictions, model.path, model.name, model.predict_data_manager.dataset)
-#
-#     _save_plot_matrices(model, predictions)
+
+def save_model_analysis(model: ContactMapEstimator, proteins=None):
+    predictions = get_model_predictions(model, proteins=proteins)['logits']
+    if proteins is None:
+        _get_top_category_accuracy_np(predictions, model.path, model.name, model.predict_data_manager.dataset)
+
+    _save_plot_matrices(model, predictions)
 
 
 def write_model_analysis(model, model_path, model_name, dataset, models=None, plot=True):
@@ -965,7 +966,7 @@ def calculate_accuracy(logits, gt):
 
 def ds_accuracy(model, dataset):
     prediction_data = {}
-    ds_path = os.path.join(PATHS.models, model.name, 'predictions',dataset)
+    ds_path = os.path.join(PATHS.models, model.name, 'predictions', dataset)
     for target in os.listdir(ds_path):
         if target not in getattr(DATASETS, dataset):
             continue
