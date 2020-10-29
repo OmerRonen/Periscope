@@ -6,10 +6,9 @@ import tempfile
 
 import numpy as np
 from Bio import pairwise2
-from Bio.PDB import PDBIO, Select, PDBParser
 
 from .utils import (check_path, get_fasta_fname, get_target_dataset, yaml_save, get_modeller_pdb_file, get_aln_fasta,
-                    yaml_load, get_a3m_fname)
+                    yaml_load, get_a3m_fname, save_chain_pdb)
 from ..analysis.analyzer import get_model_predictions
 from ..data.creator import DataCreator
 from ..net.contact_map import ContactMapEstimator, get_model_by_name
@@ -39,6 +38,9 @@ def model_modeller_tm_scores(model_name, target, fast=False, sswt=5, selectrr='2
 
     LOGGER.info(f'modeller score for {target}:\n')
     tm_modeller = get_modeller_tm_score(target, templates=True)
+    LOGGER.info(f'modeller score with starting point for {target}:\n')
+    tm_modeller_sp = get_modeller_tm_score(target, templates=True, sp=True)
+    LOGGER.info(f'reference score for {target}:\n')
     tm_ref = get_ref_tm_score(target, dc.closest_pdb)
 
     scores_file = os.path.join(model.path, f'tm_{sswt}_{selectrr}', dataset, f'{target}.yaml')
@@ -47,7 +49,8 @@ def model_modeller_tm_scores(model_name, target, fast=False, sswt=5, selectrr='2
     n_refs = dc.n_refs_test
     n_homs = dc.n_homs
 
-    scores = {model.name: tm_model, 'modeller': tm_modeller, 'n_refs': n_refs, "n_homs": n_homs, 'ref': tm_ref}
+    scores = {model.name: tm_model, 'modeller': tm_modeller, 'modeller_sp': tm_modeller_sp,
+              'n_refs': n_refs, "n_homs": n_homs, 'ref': tm_ref}
     yaml_save(data=scores, filename=scores_file)
 
 
@@ -71,47 +74,6 @@ def save_modeller_scores(dataset):
         scores[target] = {'old': tm_old, 'new': tm_new}
         dataset_path = os.path.join(PATHS.models, 'modeller', dataset)
         yaml_save(data=scores, filename=os.path.join(dataset_path, f'tm_scores.yaml'))
-
-
-def save_chain_pdb(target, fname, pdb_fname, ind, skip_chain=False, old=True):
-    pdb_parser = PDBParser(PERMISSIVE=1)
-    s = pdb_parser.get_structure(target[0:4], pdb_fname)
-    io = PDBIO()
-    io.set_structure(s)
-    tmp_file = os.path.join(os.getcwd(), f'{target}_tmp.pdb')
-
-    class ChainSelect(Select):
-        def __init__(self, chain, skip_chain, old=True):
-            self._chain = chain
-            self._skip_chain = skip_chain
-            self._old = old
-
-        def accept_chain(self, chain):
-            if chain.id == self._chain or self._skip_chain:
-                return 1
-            else:
-                return 0
-
-        def accept_residue(self, residue):
-            if residue.full_id[3][0] == ' ' or residue.full_id[3][0] == 'H_MSE':
-                return 1
-            elif self._old and residue.full_id[3][0] != 'W':
-                return 1
-            else:
-                return 0
-
-    io.save(tmp_file, ChainSelect(target[4], skip_chain=skip_chain, old=old))
-    reres_cmd = f'pdb_reres -{ind} {tmp_file} > {fname}'
-    subprocess.call(reres_cmd, shell=True)
-    os.remove(tmp_file)
-
-    # if not skip_chain:
-    #     io.save(tmp_file, ChainSelect(target[4]))
-    #     reres_cmd = f'pdb_reres -{ind} {tmp_file} > {fname}'
-    #     subprocess.call(reres_cmd, shell=True)
-    #     os.remove(tmp_file)
-    # else:
-    #     shutil.copy(pdb_fname, fname)
 
 
 def _get_tm_score(native_pdb, predicted_pdb):
@@ -146,9 +108,9 @@ def get_ref_tm_score(target, reference):
     return tm
 
 
-def get_modeller_tm_score(target, templates=False):
+def get_modeller_tm_score(target, templates=False, sp=False):
     protein, chain = target[0:4], target[4]
-    modeller_pdb = get_modeller_pdb_file(target, templates=templates, n_struc=1)
+    modeller_pdb = get_modeller_pdb_file(target, templates=templates, n_struc=1, sp=sp)
     if not os.path.isfile(modeller_pdb):
         return
 
@@ -340,7 +302,7 @@ def _get_target_tm(target, model, full=False, sswt=5, dataset=None, selectrr='2.
     native_pdb = f'{target}_native.pdb'
     save_chain_pdb(target, native_pdb, Protein(target[0:4], target[4]).pdb_fname, 1)
 
-    tm = _get_tm_score(native_pdb, predicted_pdb)
+    tm = _get_tm_score(native_pdb, pred_pdb)
     os.remove(pred_pdb)
     os.remove(native_pdb)
     return tm

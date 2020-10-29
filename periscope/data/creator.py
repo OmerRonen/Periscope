@@ -20,7 +20,7 @@ from ..utils.constants import PATHS, DATASETS, AMINO_ACID_STATS, PROTEIN_BOW_DIM
 from ..utils.utils import (convert_to_aln, write_fasta, MODELLER_VERSION, create_sifts_mapping, read_raw_ec_file,
                            pkl_save, pkl_load, compute_structures_identity_matrix, VERSION, get_modeller_pdb_file,
                            get_target_path, get_target_ccmpred_file, check_path, read_fasta, run_clustalo,
-                           get_aln_fasta)
+                           get_aln_fasta, get_predicted_pdb, save_chain_pdb)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -284,8 +284,12 @@ class DataCreator:
         # aln_txt = _create_pir_alignment(refrences_map, sequences, self.target, structures)
         return aln_txt
 
-    def run_modeller_templates(self, n_structures=1):
+    def run_modeller_templates(self, n_structures=1, model=None):
         if self.sorted_structures is None:
+            return
+        sp = model is not None
+        file = get_modeller_pdb_file(self.target, n_struc=n_structures, sp=sp)
+        if os.path.isfile(file):
             return
 
         aln_txt = self._get_modeller_pir()
@@ -301,16 +305,31 @@ class DataCreator:
                 e.write(aln_txt)
 
             args = f'{self.target} -a {f.name} -t {templates} -n {n_structures}'
+            outpath = os.path.join(PATHS.modeller, "templates")
+
+            if model is not None:
+                LOGGER.info(f'Using {model.name}')
+                starting_point = get_predicted_pdb(model, self.target)
+                pred_pdb = os.path.join(PATHS.modeller, f'{self.target}_pred.pdb')
+                save_chain_pdb(self.target, pred_pdb, starting_point, self.protein.modeller_start_end[0])
+                args += f' -s {pred_pdb}'
+                outpath = os.path.join(PATHS.modeller, "templates", 'sp')
+                LOGGER.info(f'{os.path.isfile(pred_pdb)}')
+                if not os.path.isfile(pred_pdb):
+                    return
+
             modeller_python = '/cs/staff/dina/modeller9.18/bin/modpy.sh python3'
             cmd = f'{modeller_python} -m periscope.data.modeller.run_modeller_templates {args}'
             subprocess.run(cmd, shell=True)
+            if model is not None:
+                os.remove(pred_pdb)
             mod_args_2 = f'{self.protein.protein} {self.protein.chain}' \
-                         f' {version} {n_structures}  {os.getcwd()} {os.path.join(PATHS.modeller, "templates")}'
+                         f' {version} {n_structures}  {os.getcwd()} {outpath}'
 
             cmd2 = f'{modeller_python} -m periscope.data.modeller.modeller_files {mod_args_2}'
             subprocess.run(cmd2, shell=True)
 
-    def _run_modeller(self, n_structures=1):
+    def _run_modeller(self, n_structures):
         """Runs Modeller to compute pdb file from template which is the closest know structure
 
 
@@ -708,6 +727,10 @@ class DataCreator:
 
         """
 
+        file = os.path.join(self._msa_data_path, 'seq_refs_test.pkl')
+        if os.path.isfile(file):
+            return pkl_load(file)
+
         bow_msa_full = self._generate_seq_refs_full_test()
 
         if bow_msa_full is None:
@@ -717,11 +740,14 @@ class DataCreator:
         total_refs = shape[-1]
 
         if total_refs >= self._n_refs:
-            return bow_msa_full[..., 0:self._n_refs]
+            output = bow_msa_full[..., 0:self._n_refs]
         else:
-            return np.concatenate(
+            output = np.concatenate(
                 [np.zeros((shape[0], shape[1], self._n_refs - total_refs)), bow_msa_full],
                 axis=2)
+
+        pkl_save(file, output)
+        return output
 
     def _get_seq_refs(self):
         """Numeric sequence representation of references
@@ -1408,7 +1434,7 @@ class DataCreator:
             if full_p != fname:
                 os.remove(full_p)
         if os.path.isfile(fname):
-            LOGGER.info(f"Reading {fname}")
+            # LOGGER.info(f"Reading {fname}")
             self._aln = read_fasta(fname, True)
             return
 
@@ -1527,6 +1553,10 @@ class DataCreator:
     @property
     def k_reference_dm_test(self):
 
+        file = os.path.join(self._msa_data_path, 'k_dm_tst.pkl')
+        if os.path.isfile(file):
+            return pkl_load(file)
+
         structures = self._get_k_closest_references()
         if structures is None:
             return
@@ -1555,7 +1585,9 @@ class DataCreator:
         if n_strucs > self._n_refs:
             aligned_dms = aligned_dms[..., n_strucs - self._n_refs: n_strucs]
 
-        return self._replace_nas(aligned_dms)
+        output = self._replace_nas(aligned_dms)
+        pkl_save(file, output)
+        return output
 
     @property
     def k_reference_dm(self):

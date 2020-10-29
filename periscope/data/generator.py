@@ -1,6 +1,7 @@
 import logging
 import os
 import random
+import tempfile
 import time
 
 import numpy as np
@@ -10,7 +11,7 @@ from .creator import DataCreator
 from .seeker import DataSeeker
 from ..utils.constants import (FEATURES, PROTEIN_BOW_DIM_PSSM_SS, PROTEIN_BOW_DIM_SS, PROTEIN_BOW_DIM,
                                FEATURES_DIMS, ARCHS)
-from ..utils.utils import pkl_save
+from ..utils.utils import pkl_save, pkl_load, timeit
 
 logging.basicConfig(level=logging.INFO)
 
@@ -28,6 +29,8 @@ class DataGenerator:
         self._conv_features = conv_features
         self._n_refs = n_refs
         self._model_path = model_path
+        self._tmp_dir = tempfile.TemporaryDirectory(dir=self._model_path)
+        LOGGER.info(f'Temp directory created at {self._tmp_dir.name}')
         self._yielded = []
         self._num_bins = num_bins
         self.dataset = dataset
@@ -269,20 +272,26 @@ class MsCCmpredGenerator(DataGenerator):
         return data
 
     def _yield_protein_data(self, protein, l=None):
+
+        file = os.path.join(self._tmp_dir.name, f'{protein}.pkl')
+        if os.path.isfile(file):
+            LOGGER.info(f"loading {file}")
+            return pkl_load(file)
+
         data = {}
         data_seeker = DataSeeker(protein, n_refs=self._n_refs)
         data_creator = DataCreator(protein, n_refs=self._n_refs)
         LOGGER.info(protein)
 
         try:
-            start_time = time.time()
+            # start_time = time.time()
             evfold = np.expand_dims(data_seeker.evfold, axis=2)
-            end_time = time.time()
-            LOGGER.info(f'Evfold takes  {end_time-start_time}')
-            start_time = time.time()
+            # end_time = time.time()
+            # LOGGER.info(f'Evfold takes  {end_time-start_time}')
+            # start_time = time.time()
             ccmpred = np.expand_dims(data_seeker.ccmpred, axis=2)
-            end_time = time.time()
-            LOGGER.info(f'CCmpred takes  {end_time-start_time}')
+            # end_time = time.time()
+            # LOGGER.info(f'CCmpred takes  {end_time-start_time}')
             if ccmpred.shape != evfold.shape:
                 return
             data[FEATURES.evfold] = evfold
@@ -291,14 +300,14 @@ class MsCCmpredGenerator(DataGenerator):
             LOGGER.error(f'Data error for protein {protein}:\n{str(e)}')
             return
         try:
-            start_time = time.time()
+            # start_time = time.time()
             data[FEATURES.k_reference_dm_conv] = data_creator.k_reference_dm_test
-            end_time = time.time()
-            LOGGER.info(f'Refs dm takes  {end_time-start_time}')
-            start_time = time.time()
+            # end_time = time.time()
+            # LOGGER.info(f'Refs dm takes  {end_time-start_time}')
+            # start_time = time.time()
             data[FEATURES.seq_refs] = data_creator.seq_refs_test
-            end_time = time.time()
-            LOGGER.info(f'Refs seqs takes  {end_time-start_time}')
+            # end_time = time.time()
+            # LOGGER.info(f'Refs seqs takes  {end_time-start_time}')
         except Exception as e:
             LOGGER.error(f'Data error for protein {protein}:\n{str(e)}')
             return
@@ -328,6 +337,7 @@ class MsCCmpredGenerator(DataGenerator):
 
         if self._mode == tf.estimator.ModeKeys.PREDICT:
             self._yielded.append(protein)
+        pkl_save(file, data)
 
         return data
 

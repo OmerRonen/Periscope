@@ -1,14 +1,14 @@
 client_secrets.json
 mycreds.txt
 data2/
-*.idea/
-.idea/workspace.xml
+.idea/
 realign.md
 data/
 data/figures
 models/nips_retrain/
 models/deep_proj/
 models/conv_net/
+models/nips_model/
  __pycache__/
 *.pyc
 *workspace.xml
