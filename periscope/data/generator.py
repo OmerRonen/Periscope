@@ -489,4 +489,5 @@ class ConvGenerator(DataGenerator):
 Generators = {ARCHS.conv: ConvGenerator,
               ARCHS.ms_ss_ccmpred: MsSsCCmpredGenerator,
               ARCHS.ms_ss_ccmpred_pssm: MsSsCCmpredPssmGenerator,
-              ARCHS.multi_structure_ccmpred: MsCCmpredGenerator}
+              ARCHS.multi_structure_ccmpred: MsCCmpredGenerator,
+              ARCHS.multi_structure_ccmpred_2: MsCCmpredGenerator}
