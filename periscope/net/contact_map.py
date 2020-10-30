@@ -12,7 +12,7 @@ from ..utils.constants import (ARCHS, PROTEIN_BOW_DIM, PROTEIN_BOW_DIM_PSSM_SS,
                                PROTEIN_BOW_DIM_SS,
                                DATASETS, FEATURES, PATHS)
 from ..net.basic_ops import (get_top_category_accuracy, deep_conv_op, multi_structures_op,
-                             multi_structures_op_2, get_opt_op, upper_triangular_mse_loss,
+                             multi_structures_op_simple, get_opt_op, upper_triangular_mse_loss,
                              upper_triangular_cross_entropy_loss)
 from ..utils.utils import yaml_save
 
@@ -144,10 +144,28 @@ class MsCCmpredProteinNet(ProteinNet):
         return multi_structures_input
 
 
+class MsCCmpredProteinNetSimple(ProteinNet):
+    @property
+    def predicted_contact_map(self):
+        return partial(multi_structures_op_simple,
+                       conv_params=self._conv_arch_params,
+                       deep_projection=self._deep_projection)
+
+    def get_inputs(self, features):
+        multi_structures_input = {
+            'dms': features[FEATURES.k_reference_dm_conv],
+            'seq_refs': features[FEATURES.seq_refs],
+            'seq_target': features[FEATURES.seq_target],
+            'evfold': features[FEATURES.evfold],
+            'ccmpred': features[FEATURES.ccmpred]
+        }
+        return multi_structures_input
+
+
 class MsSsCCmpredProteinNet(ProteinNet):
     @property
     def predicted_contact_map(self):
-        return partial(multi_structures_op_2,
+        return partial(multi_structures_op_simple,
                        conv_params=self._conv_arch_params,
                        prot_dim=PROTEIN_BOW_DIM_SS,
                        k=100)
@@ -166,7 +184,7 @@ class MsSsCCmpredProteinNet(ProteinNet):
 class MsSsCCmpredPssmProteinNet(ProteinNet):
     @property
     def predicted_contact_map(self):
-        return partial(multi_structures_op_2,
+        return partial(multi_structures_op_simple,
                        conv_params=self._conv_arch_params,
                        prot_dim=PROTEIN_BOW_DIM_PSSM_SS,
                        k=100)
@@ -184,6 +202,7 @@ class MsSsCCmpredPssmProteinNet(ProteinNet):
 
 _nets = {ARCHS.conv: ConvProteinNet,
          ARCHS.multi_structure_ccmpred: MsCCmpredProteinNet,
+         ARCHS.multi_structure_ccmpred_2: MsCCmpredProteinNetSimple,
          ARCHS.ms_ss_ccmpred: MsSsCCmpredProteinNet,
          ARCHS.ms_ss_ccmpred_pssm: MsSsCCmpredPssmProteinNet}
 
