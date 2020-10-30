@@ -14,7 +14,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 BIN_THRESHOLDS = {1: 8.5, 2: 1}
 
 LOGGER = logging.getLogger(__name__)
-warnings.filterwarnings('ignore',  module='/tensorflow/')
+warnings.filterwarnings('ignore', module='/tensorflow/')
 
 
 def flatten_tf(tensor):
@@ -403,7 +403,8 @@ def multi_structures_op(dms, seq_refs, seq_target, evfold, conv_params, ccmpred=
                         name_prefix='final')
 
 
-def multi_structures_op_2(dms, seq_refs, seq_target, evfold, conv_params, ccmpred=None, k=30, prot_dim=PROTEIN_BOW_DIM):
+def multi_structures_op_simple(dms, seq_refs, seq_target, evfold, conv_params, ccmpred=None, k=30,
+                               deep_projection=True):
     """Multi structures contact map prediction operation
 
     Args:
@@ -419,46 +420,43 @@ def multi_structures_op_2(dms, seq_refs, seq_target, evfold, conv_params, ccmpre
         tf.Tensor: predicted contact map of shape (1, l,  l, num_bins)
 
     """
-    structures_info = []
+    prot_dim = PROTEIN_BOW_DIM
 
-    for i in range(dms.get_shape().as_list()[3]):
-        structures_info.append(
-            _single_structure_op(dm=dms[..., i:i + 1],
-                                 seq_ref=seq_refs[..., i],
-                                 seq_target=seq_target,
-                                 evfold=evfold,
-                                 ccmpred=ccmpred,
-                                 k=k,
-                                 prot_dim=prot_dim,
-                                 output_dim=4))
+    with tf.variable_scope('second_projection'):
+        seq_refs_modified = tf.transpose(seq_refs, perm=[0, 3, 1, 2])  # (1, None, l, PROTEIN_BOW_DIM)
+        if not deep_projection:
+            aa_proj_ref = tf.get_variable(
+                "AA_Ref_2",
+                shape=(prot_dim, k),
+                initializer=tf.contrib.layers.xavier_initializer())
+            aa_proj_target = tf.get_variable(
+                "AA_Target_2",
+                shape=(prot_dim, k),
+                initializer=tf.contrib.layers.xavier_initializer())
 
-    # with tf.variable_scope('second_projection'):
-    #     aa_proj_ref = tf.get_variable(
-    #         "AA_Ref",
-    #         shape=(prot_dim, k),
-    #         initializer=tf.contrib.layers.xavier_initializer())
-    #     aa_proj_target = tf.get_variable(
-    #         "AA_Target",
-    #         shape=(prot_dim, k),
-    #         initializer=tf.contrib.layers.xavier_initializer())
+            seq_refs_projected = tf.matmul(seq_refs_modified,
+                                           aa_proj_ref)  # (1, None, l, k)
 
-    # seq_refs_modified = tf.transpose(seq_refs,
-    #                                  perm=[0, 3, 1,
-    #                                        2])  # (1, None, l, PROTEIN_BOW_DIM)
-    # seq_refs_projected = tf.matmul(seq_refs_modified,
-    #                                aa_proj_ref)  # (1, None, l, k)
-    #
-    # target_projected = tf.transpose(tf.matmul(seq_target, aa_proj_target),
-    #                                 perm=[0, 2, 1])  # (1, k, l)
-    #
-    # sequence_distance_matrices = tf.transpose(tf.matmul(
-    #     seq_refs_projected, target_projected),
-    #     perm=[0, 2, 3,
-    #           1])  # (1, l, l, None)
+            target_projected = tf.matmul(seq_target, aa_proj_target)
+        else:
+            seq_refs_projected = _projection_op(seq_refs_modified, n=N_LAYERS_PROJ, k=k, name='AA_Ref_2')
+            target_projected = _projection_op(seq_target, n=N_LAYERS_PROJ, k=k, name='AA_Target_2')
+    target_projected = tf.transpose(target_projected, perm=[0, 2, 1])  # (1, k, l)
 
-    weighted_structures = tf.concat(structures_info, axis=3)  # (1, l, l, None)
+    sequence_distance_matrices = tf.transpose(tf.matmul(
+        seq_refs_projected, target_projected),
+        perm=[0, 2, 3,
+              1])  # (1, l, l, None)
 
-    return deep_conv_op(conv_input_tensor=weighted_structures,
+    sequence_distance_matrices = tf.nn.softmax(sequence_distance_matrices, axis=-1, name='Homolugous_W')
+
+
+    weighted_structures = sequence_distance_matrices * tf.concat(
+        dms, axis=3)  # (1, l, l, None)
+
+    conv_inp = tf.concat([tf.reduce_sum(weighted_structures, axis=-1, keepdims=True), ccmpred, evfold], axis=3)
+
+    return deep_conv_op(conv_input_tensor=conv_inp,
                         **conv_params,
                         name_prefix='final')
 
