@@ -729,7 +729,9 @@ class DataCreator:
 
         file = os.path.join(self._msa_data_path, 'seq_refs_test.pkl')
         if os.path.isfile(file):
-            return pkl_load(file)
+            output = pkl_load(file)
+            if output.shape[2] == self._n_refs:
+                return output
 
         bow_msa_full = self._generate_seq_refs_full_test()
 
@@ -1555,7 +1557,9 @@ class DataCreator:
 
         file = os.path.join(self._msa_data_path, 'k_dm_tst.pkl')
         if os.path.isfile(file):
-            return pkl_load(file)
+            output = pkl_load(file)
+            if output.shape[2] == self._n_refs:
+                return output
 
         structures = self._get_k_closest_references()
         if structures is None:
