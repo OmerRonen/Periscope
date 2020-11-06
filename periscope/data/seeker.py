@@ -11,7 +11,7 @@ import numpy as np
 from ..utils.constants import PATHS, DATASETS, SEQ_ID_THRES, N_REFS
 from ..utils.protein import Protein
 from ..utils.utils import (get_sotred_ec, read_raw_ec_file, pkl_save, MODELLER_VERSION, pkl_load, get_modeller_pdb_file,
-                           get_target_path, get_target_ccmpred_file)
+                           get_target_path, get_target_ccmpred_file, get_target_scores_file)
 
 LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -435,3 +435,33 @@ class DataSeeker:
         sequence_distance = np.fromfunction(i_minus_j,
                                             shape=self.target_pdb_cm.shape)
         return sequence_distance
+
+    @property
+    def scores(self):
+        scores_file = get_target_scores_file(self.target)
+
+        return pkl_load(scores_file)
+
+    @property
+    def pwm_w(self):
+        if self.scores is None:
+            return
+        return self.scores['PWM'][0]
+
+    @property
+    def pwm_evo(self):
+        if self.scores is None:
+            return
+        return self.scores['PWM'][1]
+
+    @property
+    def conservation(self):
+        if self.scores is None:
+            return
+        return np.expand_dims(np.array(self.scores['conservation']), axis=1)
+
+    @property
+    def beff(self):
+        if self.scores is None:
+            return
+        return np.array([self.scores['Beff_alignment']], dtype=np.float32)

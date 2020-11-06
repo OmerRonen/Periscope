@@ -643,6 +643,22 @@ class DataCreator:
 
         return pkl_load(scores_file)
 
+    @property
+    def pwm_w(self):
+        return self.scores['PWM'][0]
+
+    @property
+    def pwm_evo(self):
+        return self.scores['PWM'][1]
+
+    @property
+    def conservation(self):
+        return np.expand_dims(np.array(self.scores['conservation']), axis=1)
+
+    @property
+    def beff(self):
+        return np.array([self.scores['Beff_alignment']], dtype=np.float32)
+
     def _bow_msa(self, refs=None, msa=None):
         """
 

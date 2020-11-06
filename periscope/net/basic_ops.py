@@ -6,12 +6,13 @@ import tensorflow as tf
 
 from ..utils.constants import (C_MAP_PRED, UPPER_TRIANGULAR_MSE_LOSS,
                                UPPER_TRIANGULAR_CE_LOSS,
-                               PROTEIN_BOW_DIM, N_LAYERS_PROJ)
-from ..utils.utils import compute_sequence_distance_mat_np
+                               PROTEIN_BOW_DIM, N_LAYERS_PROJ, PATHS)
+from ..utils.utils import compute_sequence_distance_mat_np, yaml_load
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 BIN_THRESHOLDS = {1: 8.5, 2: 1}
+PROJECTION_DIM = 20
 
 LOGGER = logging.getLogger(__name__)
 warnings.filterwarnings('ignore', module='/tensorflow/')
@@ -148,11 +149,6 @@ def get_top_category_accuracy(category, top, predictions, contact_map,
     return _get_true_rate(category_true, category_pred, n_inds, mode)
 
 
-def _attention_params():
-    params = {"num_layers": 5, "q_dim": 20, "v_dim": 5}
-    return params
-
-
 def pairwise_conv_layer(input_data,
                         num_features,
                         num_filters,
@@ -180,7 +176,6 @@ def pairwise_conv_layer(input_data,
 
     if residual:
         num_filters = num_features
-
     with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
         conv_filt_shape = [
             filter_shape[0], filter_shape[1], num_features, num_filters
@@ -450,7 +445,6 @@ def multi_structures_op_simple(dms, seq_refs, seq_target, evfold, conv_params, c
 
     sequence_distance_matrices = tf.nn.softmax(sequence_distance_matrices, axis=-1, name='Homolugous_W')
 
-
     weighted_structures = sequence_distance_matrices * tf.concat(
         dms, axis=3)  # (1, l, l, None)
 
@@ -459,6 +453,188 @@ def multi_structures_op_simple(dms, seq_refs, seq_target, evfold, conv_params, c
     return deep_conv_op(conv_input_tensor=conv_inp,
                         **conv_params,
                         name_prefix='final')
+
+
+def _outer_concat(seq):
+    """Performs outer concatenation
+
+    Args:
+        seq (tf.Tensor): reference sequence of shape (1, l, D)
+
+    Returns:
+        tf.Tensor: of shape (1, l, l, 2D)
+
+    """
+    l = tf.shape(seq)[1]
+    one = tf.shape(seq)[0]
+    tile_multiple_1 = [one, l, one, one]
+    s_1 = tf.tile(tf.expand_dims(seq, axis=1), tile_multiple_1)
+    tile_multiple_2 = [one, one, l, one]
+    s_2 = tf.tile(tf.expand_dims(seq, axis=2), tile_multiple_2)
+
+    return tf.concat([s_2, s_1], axis=3)
+
+
+def _template_op(seq, dm):
+    """Performs Template network operation
+
+    Args:
+        seq (tf.Tensor): reference sequence of shape (1, l, 22)
+        dm (tf.Tensor): reference distance matrix of shape (1, l, l, 1)
+
+
+    Returns:
+        tf.Tensor: contact map embedding of shape (1, l, l, 1)
+
+    """
+    aa_proj_ref = tf.get_variable(
+        "ref_projection",
+        shape=(22, PROJECTION_DIM),
+        initializer=tf.contrib.layers.xavier_initializer())
+    s = tf.matmul(seq, aa_proj_ref)  # (1, l, PROJECTION_DIM)
+    s_pair = _outer_concat(s)
+    c = tf.concat([s_pair, dm], axis=3)
+    return tf.nn.relu(deep_conv_op(c, input_shape=PROJECTION_DIM * 2 + 1))
+
+
+def _evo_op(pwn, evo_arr):
+    """Performs Template network operation
+
+    Args:
+        pwn (tf.Tensor): pssm of shape (1, l, 21)
+        evo_arr (tf.Tensor): evfold/ccmpred matrix of shape (1, l, l, 2)
+
+
+    Returns:
+        tf.Tensor: contact map embedding of shape (1, l, l, 1)
+
+    """
+    aa_proj_ref = tf.get_variable(
+        "pwn_projection",
+        shape=(21, PROJECTION_DIM),
+        initializer=tf.contrib.layers.xavier_initializer())
+    s = tf.matmul(pwn, aa_proj_ref)  # (1, l, PROJECTION_DIM)
+    s_pair = _outer_concat(s)
+    c = tf.concat([s_pair, evo_arr], axis=3)
+    return tf.nn.relu(deep_conv_op(c, input_shape=PROJECTION_DIM * 2 + 1))
+
+
+def _weighting_op_template(seq_template, seq_target):
+    """Computes weights for template
+
+    Args:
+        seq_template (tf.Tensor): template sequence/pwm of shape (1, l, 22/21)
+        seq_target (tf.Tensor): target sequence/conservation of shape (1, l, 22/21)
+        beff (tf.Tensor): Effective number of sequences within alignment Beff
+        evo_arr (tf.Tensor): ccmpred/evfold energy matrix of shape (1, l, l, 1)
+
+    Returns:
+        tf.Tensor: weights of shape (1, l, l, 1)
+
+    """
+    seq_template = seq_template[..., 0:-1]
+    aa_dim = tf.shape(seq_template)[-1]
+    aa_dim_int = int(seq_template.shape[-1])
+    l = tf.shape(seq_template)[1]
+    one = tf.shape(seq_template)[0]
+
+    name_w = 'template'
+
+    O = tf.einsum('ijk,ijl->ijkl', seq_template, seq_target)
+    O_s = tf.reshape(O, shape=(one, l, aa_dim * aa_dim))
+    conv0_filt_shape = [
+        5, aa_dim_int ** 2, PROJECTION_DIM
+    ]
+    # initialise weights and bias for the filter
+    weights0 = tf.get_variable(
+        f"{name_w}_conv0_w",
+        shape=conv0_filt_shape,
+        initializer=tf.contrib.layers.xavier_initializer())
+
+    O_smooth = tf.nn.conv1d(input=O_s, filters=weights0, padding='SAME')
+
+    conv0_filt_shape = [
+        5, PROJECTION_DIM, 1
+    ]
+    # initialise weights and bias for the filter
+    weights1 = tf.get_variable(
+        f"{name_w}_conv1_w",
+        shape=conv0_filt_shape,
+        initializer=tf.contrib.layers.xavier_initializer())
+
+    W_1d = tf.nn.relu(tf.nn.conv1d(input=O_smooth, filters=weights1, padding='SAME'))
+    W = _outer_concat(W_1d)
+    input_shape = 2
+    W_smooth = tf.nn.relu(deep_conv_op(W, input_shape=input_shape, name_prefix=name_w))
+
+    return tf.reduce_sum(W_smooth, axis=3, keepdims=True)
+
+
+def _weighting_op_evo(conservation, evo_arr, beff, name):
+    """Computes weights for evo
+
+    Args:
+        conservation (tf.Tensor): conservation score  of shape (1, l, 1)
+        evo_arr (tf.Tensor): ccmpred/evfold energy matrix of shape (1, l, l, 1)
+        beff (tf.Tensor): Effective number of sequences within alignment Beff
+        name (str): layer name
+
+
+    Returns:
+        tf.Tensor: weights of shape (1, l, l, 1)
+
+    """
+
+    conservation_outer = _outer_concat(conservation)
+
+    shape_w = tf.shape(conservation_outer)
+    beff_arr = tf.ones(shape=(shape_w[0], shape_w[1], shape_w[2], shape_w[0])) * beff
+
+    W = tf.concat([conservation_outer, beff_arr, evo_arr], axis=3)
+    W_smooth = tf.nn.relu(deep_conv_op(W, input_shape=4, name_prefix=name))
+
+    return tf.reduce_sum(W_smooth, axis=3, keepdims=True)
+
+
+def periscope_op(dms, seq_refs, seq_target, evfold, ccmpred, pwm_w, pwm_evo, conservation, beff, conv_params):
+    """Neural network that predicts a protein contact map
+
+    Args:
+        dms (tf.Tensor): reference distance matrix of shape (1, l, l, None)
+        seq_refs (tf.Tensor): reference sequence of shape (1, l, 22, None)
+        seq_target (tf.Tensor): target sequence of shape (1, l , 22)
+        evfold (tf.Tensor): evfold energy matrix of shape (1, l, l, 1)
+        ccmpred (tf.Tensor): ccmpred energy matrix of shape (1, l, l, 1)
+        pwm_w (tf.Tensor): position specific weight matrix focused on the wild type of shape (1, l, 21)
+        pwm_evo (tf.Tensor): position specific weight averaged across the entire alignment matrix of shape (1, l, 21)
+        conservation (tf.Tensor): conservation score tensor of shape (1, l, 21)
+        beff (tf.Tensor): Effective number of sequences within alignment Beff
+        conv_params (dict): parameters to the last deep conv layer
+
+
+    Returns:
+        tf.Tensor: predicted contact map of shape (1, l,  l, num_bins)
+
+    """
+    with tf.variable_scope('periscope', reuse=tf.AUTO_REUSE):
+        weights = []
+        templates = []
+        for i in range(dms.get_shape().as_list()[3]):
+            dm = dms[..., i:i + 1]
+            seq = seq_refs[..., i]
+            templates.append(_template_op(dm=dm, seq=seq))
+            weights.append(_weighting_op_template(seq_template=seq, seq_target=pwm_w))
+
+        templates += [_evo_op(pwm_evo, ccmpred), _evo_op(pwm_evo, evfold)]
+        weights += [_weighting_op_evo(conservation, beff=beff, evo_arr=ccmpred, name='ccmpred'),
+                    _weighting_op_evo(conservation, beff=beff, evo_arr=evfold, name='evfold')]
+
+        templates = tf.concat(templates, axis=3)
+        weights = tf.nn.softmax(tf.concat(weights, axis=3), axis=3)
+
+        conv_inp = templates * weights
+
+        return deep_conv_op(conv_inp, **conv_params, name_prefix='final')
 
 
 def _projection_op(x, k, n, name):
@@ -551,182 +727,6 @@ def _project_aa_dim(input_tensor):
     return aln_aa_projection
 
 
-def _attention_op(input_tensor, q_dim, v_dim, num_homologous, name):
-    """Performs attention operation on msa with fixed number of homologous
-
-    Args:
-        input_tensor (tf.Tensor): input of shape (1 , num_homologous , l)
-        q_dim (int): dimension of queries and keys projections
-        v_dim (int): dimension of values projection
-        num_homologous (int): number of homologous in the alignment
-        name (str): op name
-
-
-    Returns:
-        tf.Tensor: of shape (1 , v_dim , l)
-
-    """
-
-    with tf.variable_scope(name):
-        w_q = tf.get_variable(
-            "W_q",
-            shape=(1, q_dim, num_homologous),
-            initializer=tf.contrib.layers.xavier_initializer())
-        w_k = tf.get_variable(
-            "W_k",
-            shape=(1, q_dim, num_homologous),
-            initializer=tf.contrib.layers.xavier_initializer())
-        w_v = tf.get_variable(
-            "W_v",
-            shape=(1, v_dim, num_homologous),
-            initializer=tf.contrib.layers.xavier_initializer())
-
-    q = tf.matmul(w_q, input_tensor)[0, ...]  # (q_dim, l)
-    k = tf.matmul(w_k, input_tensor)[0, ...]  # (q_dim, l)
-    v = tf.matmul(w_v, input_tensor)[0, ...]  # (v_dim , l)
-
-    # l = tf.cast(input_tensor.shape[2], tf.float32)
-
-    energy = tf.matmul(tf.transpose(q), k) / tf.sqrt(
-        tf.cast(num_homologous, tf.float32))  # (l,l)
-
-    energy_norm = tf.nn.softmax(energy, axis=1)  # (l, l)
-    context = tf.matmul(v, energy_norm)  # (v_dim, l)
-
-    return tf.nn.tanh(context)[None, ...]
-
-
-def _residual_block(structure, previous_layer, num_features, num_filters,
-                    name):
-    """Single residual conv operation
-
-    Args:
-        structure (tf.Tensor): input of shape (1 , l , l , num_features)
-        previous_layer (Union[tf.Tensor, None]): previous layer output of shape (1 , l , l , num_features)
-        num_features (int): number of conv_features to input tensor
-        num_filters (int): number of filters in the conv layers
-        name (str): name for the residual operation
-
-    Returns:
-        tf.Tensor: same shape as structure
-
-    """
-    previous_layer = previous_layer if previous_layer is not None else tf.zeros_like(
-        structure)
-
-    with tf.variable_scope(name):
-        residual_sum = structure + previous_layer
-
-        conv1 = pairwise_conv_layer(residual_sum,
-                                    num_features=num_features,
-                                    num_filters=num_filters,
-                                    filter_shape=(5, 5),
-                                    dilation=1,
-                                    name='conv1')
-
-        conv2 = pairwise_conv_layer(conv1,
-                                    num_features=num_filters,
-                                    num_filters=num_features,
-                                    filter_shape=(7, 7),
-                                    dilation=1,
-                                    name='conv2')
-
-        return conv2
-
-
-def residual_structures_op(references_tensor, conv_input_tensor, conv_params,
-                           shared_weights, num_res_filters):
-    """Residual structure operation
-
-    Args:
-        references_tensor (tf.Tensor): input of shape (1 , l , l , num_features, num_refrences)
-        conv_input_tensor (tf.Tensor): input to conv net if shape (1, l , l , Any)
-        conv_params (dict): params to last conv op
-        shared_weights (bool): if true weights are shared among layers
-        num_res_filters (int): number of filters in the residual block
-
-    Returns:
-        tf.Tensor: predicted contact map of shape 1 * l * l * num_bins
-
-    """
-    previous_layer = None
-    num_features = references_tensor.get_shape().as_list()[3]
-    num_refrences = references_tensor.get_shape().as_list()[-1]
-
-    for i in range(num_refrences):
-        structure = references_tensor[..., i]
-        is_zero = tf.equal(tf.reduce_sum(structure), 0)
-
-        name = 'res_block_%s' % i if shared_weights else 'res_block'
-
-        res_op = _residual_block(structure=structure,
-                                 previous_layer=previous_layer,
-                                 num_features=num_features,
-                                 num_filters=num_res_filters,
-                                 name=name)
-
-        res_op = tf.where(is_zero, structure, res_op)
-
-        previous_layer = res_op
-
-    conv_combined_input = tf.concat([conv_input_tensor, previous_layer],
-                                    axis=3)
-
-    return deep_conv_op(conv_combined_input, **conv_params)
-
-
-def deep_attention_op(attention_input_tensor, conv_input_tensor, num_layers,
-                      q_dim, v_dim, conv_parmas):
-    """Performs deep attention operation
-
-    Args:
-        attention_input_tensor (tf.Tensor): input of shape (1 , num_homologous , l, PROTEIN_BOW_DIM)
-        conv_input_tensor (tf.Tensor): input of shape (1 , l , l , input_shape)
-        num_layers (int): number of hidden layers
-        q_dim (int): damnation of queries and keys projections
-        v_dim (int): dimension of values projection
-        conv_parmas (dict): inputs to :meth: `deep_conv_op`
-
-
-    Returns:
-        tf.Tensor: tensor of shape (1, l, l, 1)
-
-    """
-
-    projected_aa = _project_aa_dim(attention_input_tensor)
-    num_homologous = projected_aa.get_shape().as_list()[1]
-
-    current_attention = _attention_op(input_tensor=projected_aa,
-                                      q_dim=q_dim,
-                                      v_dim=v_dim,
-                                      num_homologous=num_homologous,
-                                      name='attention_%s' % 0)
-
-    for i in range(1, num_layers):
-        prev_attention = current_attention
-
-        current_attention = _attention_op(input_tensor=prev_attention,
-                                          q_dim=q_dim,
-                                          v_dim=v_dim,
-                                          num_homologous=v_dim,
-                                          name='attention_%s' % i)
-
-    outer_product = []
-
-    for i in range(v_dim):
-        outer_product.append(
-            tf.tensordot(current_attention[:, i, :],
-                         tf.transpose(current_attention[:, i, :]),
-                         axes=0))
-
-    attention_pairwise_mat = tf.concat(outer_product, axis=3)
-
-    conv_combined_input = tf.concat(
-        [attention_pairwise_mat, conv_input_tensor], axis=3)
-
-    return deep_conv_op(conv_combined_input, **conv_parmas)
-
-
 def deep_conv_op(conv_input_tensor,
                  num_layers=6,
                  num_channels=5,
@@ -734,7 +734,8 @@ def deep_conv_op(conv_input_tensor,
                  dilation=1,
                  num_bins=1,
                  residual=False,
-                 name_prefix=None):
+                 name_prefix=None,
+                 input_shape=None):
     """Produces predicted contact map
 
     Args:
@@ -761,8 +762,8 @@ def deep_conv_op(conv_input_tensor,
 
     filters = _extend_param_to_layers(filter_shape, num_layers + 2)
     dilations = _extend_param_to_layers(dilation, num_layers + 2)
-
-    input_shape = int(conv_input_tensor.shape[-1])
+    if input_shape is None:
+        input_shape = int(conv_input_tensor.shape.as_list()[-1])
 
     if len(conv_input_tensor.shape) == 3:
         conv_input_tensor = tf.expand_dims(conv_input_tensor, axis=0)
