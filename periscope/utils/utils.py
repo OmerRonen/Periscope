@@ -34,9 +34,11 @@ def timeit(method):
         te = time.time()
 
         LOGGER.info('%r  %2.2f ms' % \
-                  (method.__name__, (te - ts) * 1000))
+                    (method.__name__, (te - ts) * 1000))
         return result
+
     return timed
+
 
 def read_raw_ec_file(filename, sort=True, score="cn"):
     """
@@ -574,6 +576,10 @@ def get_predicted_pdb(model, target, sswt=5, selectrr='2.0L'):
     outdir = os.path.join(model.path, f'cns_{sswt}_{selectrr.replace(".", "_")}', dataset, target)
     predicted_pdb = os.path.join(outdir, 'stage1', f'{target}_model1.pdb')
     return predicted_pdb
+
+
+def get_target_scores_file(target):
+    return os.path.join(get_target_path(target), "scores.pkl")
 
 
 def get_target_ccmpred_file(target):

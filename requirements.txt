@@ -13,3 +13,4 @@ image
 Pillow==7.1.2
 sklearn
 pdb-tools
+numba==0.51.0
