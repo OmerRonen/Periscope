@@ -586,7 +586,7 @@ class PeriscopeGenerator(DataGenerator):
         target_sequence_length = len(data_seeker.protein.sequence)
         data['sequence_length'] = np.array([target_sequence_length])
 
-        if target_sequence_length > 900:
+        if target_sequence_length > 895:
             return
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
