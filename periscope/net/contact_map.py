@@ -13,7 +13,7 @@ from ..utils.constants import (ARCHS, PROTEIN_BOW_DIM, PROTEIN_BOW_DIM_PSSM_SS,
                                DATASETS, FEATURES, PATHS)
 from ..net.basic_ops import (get_top_category_accuracy, deep_conv_op, multi_structures_op,
                              multi_structures_op_simple, get_opt_op, upper_triangular_mse_loss,
-                             upper_triangular_cross_entropy_loss)
+                             upper_triangular_cross_entropy_loss, periscope_op)
 from ..utils.utils import yaml_save
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
@@ -33,7 +33,7 @@ LOSS_FUNCTIONS = {
 logging.basicConfig(level=logging.INFO)
 
 LOGGER = logging.getLogger(__name__)
-warnings.filterwarnings('ignore',  module='/tensorflow/')
+warnings.filterwarnings('ignore', module='/tensorflow/')
 
 
 class ProteinNet:
@@ -105,6 +105,27 @@ class ProteinNet:
     #         prediction_methods_similarity['methods_similarity/%s' %
     #                                       pred_mat] = similarity
     #     return prediction_methods_similarity
+
+
+class PeriscopeNet(ProteinNet):
+    @property
+    def predicted_contact_map(self):
+        return partial(periscope_op,
+                       conv_params=self._conv_arch_params)
+
+    def get_inputs(self, features):
+        periscope_input = {
+            'dms': features[FEATURES.k_reference_dm_conv],
+            'seq_refs': features[FEATURES.seq_refs],
+            'seq_target': features[FEATURES.seq_target],
+            'evfold': features[FEATURES.evfold],
+            'ccmpred': features[FEATURES.ccmpred],
+            FEATURES.pwm_evo: features[FEATURES.pwm_evo],
+            FEATURES.pwm_w: features[FEATURES.pwm_w],
+            FEATURES.conservation: features[FEATURES.conservation],
+            FEATURES.beff: features[FEATURES.beff]
+        }
+        return periscope_input
 
 
 class ConvProteinNet(ProteinNet):
@@ -204,7 +225,8 @@ _nets = {ARCHS.conv: ConvProteinNet,
          ARCHS.multi_structure_ccmpred: MsCCmpredProteinNet,
          ARCHS.multi_structure_ccmpred_2: MsCCmpredProteinNetSimple,
          ARCHS.ms_ss_ccmpred: MsSsCCmpredProteinNet,
-         ARCHS.ms_ss_ccmpred_pssm: MsSsCCmpredPssmProteinNet}
+         ARCHS.ms_ss_ccmpred_pssm: MsSsCCmpredPssmProteinNet,
+         ARCHS.periscope: PeriscopeNet}
 
 
 def get_model_by_name(model_name, test_dataset=None):
@@ -265,22 +287,22 @@ class ContactMapEstimator:
         test_epochs = 1
         self._generator = Generators[self._arch]
         self.train_data_manager = self._generator(proteins=train_proteins,
-                                            mode=tf.estimator.ModeKeys.TRAIN,
-                                            epochs=train_epochs,
-                                            batch_size=self._batch_size,
-                                            dataset=train_dataset_name,
-                                            **self._data_generator_args)
+                                                  mode=tf.estimator.ModeKeys.TRAIN,
+                                                  epochs=train_epochs,
+                                                  batch_size=self._batch_size,
+                                                  dataset=train_dataset_name,
+                                                  **self._data_generator_args)
         self.eval_data_manager = self._generator(proteins=eval_proteins,
-                                           mode=tf.estimator.ModeKeys.TRAIN,
-                                           epochs=eval_epochs,
-                                           dataset=eval_dataset_name,
-                                           **self._data_generator_args)
+                                                 mode=tf.estimator.ModeKeys.TRAIN,
+                                                 epochs=eval_epochs,
+                                                 dataset=eval_dataset_name,
+                                                 **self._data_generator_args)
         self.predict_data_manager = self._generator(proteins=test_proteins,
-                                              mode=tf.estimator.ModeKeys.PREDICT,
-                                              epochs=test_epochs,
-                                              dataset=test_dataset_name,
-                                              old=self._old,
-                                              **self._data_generator_args)
+                                                    mode=tf.estimator.ModeKeys.PREDICT,
+                                                    epochs=test_epochs,
+                                                    dataset=test_dataset_name,
+                                                    old=self._old,
+                                                    **self._data_generator_args)
 
         gpu_options = tf.GPUOptions(allow_growth=True)
         session_config = tf.ConfigProto(gpu_options=gpu_options)
@@ -295,7 +317,7 @@ class ContactMapEstimator:
 
         self.estimator = tf.estimator.Estimator(self._get_model_fn(),
                                                 self.path,
-                                                params={},
+                                                params={"L": 5},
                                                 config=config)
 
     def _get_opt_op(self, loss, global_step):
@@ -314,6 +336,7 @@ class ContactMapEstimator:
         def model_fn(features, labels, mode, params):
 
             inputs = self.net.get_inputs(features)
+            seq_len = features['sequence_length'][0, 0]
 
             contact_pred = self.net.predicted_contact_map(**inputs)
 
@@ -324,8 +347,6 @@ class ContactMapEstimator:
                                                   predictions=contact_pred)
 
             cm = features['contact_map']
-
-            seq_len = features['sequence_length'][0, 0]
 
             loss_fn = LOSS_FUNCTIONS[self.net.prediction_type]
             loss = loss_fn(contact_pred, cm)
@@ -403,7 +424,6 @@ class ContactMapEstimator:
                                    **data_generator_args)
 
         def custom_input_fn():
-
             shapes, types = data_gen.required_shape_types
             dataset = tf.data.Dataset.from_generator(
                 data_gen.generator,
@@ -411,6 +431,7 @@ class ContactMapEstimator:
                 output_shapes=shapes)
             dataset = dataset.batch(1)
             return dataset
+
         return custom_input_fn
 
     def _get_train_spec(self):

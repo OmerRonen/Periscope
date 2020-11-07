@@ -1,4 +1,3 @@
-import shutil
 import unittest
 import tempfile
 
@@ -14,7 +13,7 @@ class TestProteinNet(unittest.TestCase):
         model_name = tempdir.name.split('/')[-1]
         params = NetParams.generate_net_params(name=model_name,
                                                conv_features=[FEATURES.ccmpred, FEATURES.evfold],
-                                               arch=ARCHS.multi_structure_ccmpred_2,
+                                               arch=ARCHS.periscope,
                                                k=10,
                                                save_summary_steps=2,
                                                save_checkpoints_steps=20,
@@ -32,7 +31,7 @@ class TestProteinNet(unittest.TestCase):
         if LOCAL:
             cnn_pred = ContactMapEstimator(params)
             cnn_pred.train_and_evaluate()
-            shutil.rmtree(tempdir.name, ignore_errors=True)
+            # shutil.rmtree(tempdir.name, ignore_errors=True)
 
     def test_train_cnn_live_0(self):
         tempdir = tempfile.TemporaryDirectory(dir=PATHS.models)
@@ -59,16 +58,16 @@ class TestProteinNet(unittest.TestCase):
         if not LOCAL:
             cnn_pred = ContactMapEstimator(params)
             cnn_pred.train_and_evaluate()
-            shutil.rmtree(tempdir.name, ignore_errors=True)
+            # shutil.rmtree(tempdir.name, ignore_errors=True)
 
     def test_train_cnn_live_1(self):
-        tempdir =  tempfile.TemporaryDirectory(dir=PATHS.models)
+        tempdir = tempfile.TemporaryDirectory(dir=PATHS.models)
         model_name = tempdir.name.split('/')[-1]
 
         params = NetParams.generate_net_params(
             name=model_name,
             conv_features=[FEATURES.ccmpred, FEATURES.reference_dm, FEATURES.evfold],
-            arch=ARCHS.multi_structure_ccmpred_2,
+            arch=ARCHS.periscope,
             save_summary_steps=1,
             save_checkpoints_steps=1,
             epochs=1,
@@ -88,7 +87,7 @@ class TestProteinNet(unittest.TestCase):
         if not LOCAL:
             cnn_pred = ContactMapEstimator(params)
             cnn_pred.train_and_evaluate()
-            shutil.rmtree(tempdir.name, ignore_errors=True)
+            # shutil.rmtree(tempdir.name, ignore_errors=True)
 
 
 if __name__ == '__main__':
