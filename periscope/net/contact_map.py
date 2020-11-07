@@ -3,6 +3,7 @@ import os
 import warnings
 
 import tensorflow as tf
+import numpy as np
 
 from functools import partial
 
@@ -470,3 +471,10 @@ class ContactMapEstimator:
         input_fn = self._get_custom_input_fn(proteins, dataset)
         return self.estimator.predict(input_fn,
                                       yield_single_examples=True)
+
+    @property
+    def n_params(self):
+        vars = self.estimator.get_variable_names()
+        n_params = int(sum([np.prod(self.estimator.get_variable_value(var).shape) for var in vars]))
+        return n_params
+
