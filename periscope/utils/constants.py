@@ -110,7 +110,7 @@ NUM_HOMOLOGOUS = 500
 Architectures = namedtuple('Architectures',
                            'conv references_resnet multi_structure multi_structure_pssm multi_structure_ccmpred'
                            ' multi_structure_ccmpred_2 ms_ccmpred_pssm ms_ss_ccmpred_pssm ms_ss_ccmpred ms_ss_ccmpred_2'
-                           ' periscope')
+                           ' periscope periscope2')
 
 ARCHS = Architectures(conv='conv',
                       references_resnet='references_resnet',
@@ -122,7 +122,8 @@ ARCHS = Architectures(conv='conv',
                       ms_ss_ccmpred_pssm='ms_ss_ccmpred_pssm',
                       ms_ss_ccmpred='ms_ss_ccmpred',
                       ms_ss_ccmpred_2='ms_ss_ccmpred_2',
-                      periscope='periscope')
+                      periscope='periscope',
+                      periscope2='periscope2')
 
 Datasets = namedtuple('Datasets', 'train eval pfam testing cameo membrane cameo41')
 
@@ -175,7 +176,7 @@ def generate_dataset():
         membrane=yaml_load(os.path.join(PATHS.data, 'valid',
                                         'membrane.yaml'))['proteins'],
 
-        testing=['1ej0A', '1hh8A', '1kw4A', '1mk0A', '1tqgA', '1fl0A', '1jo8A']
+        testing=['1ej0A', '1hh8A', '1kw4A','1mk0A', '1tqgA', '1fl0A', '1jo8A']
 
     )
     return datasets

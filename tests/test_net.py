@@ -13,7 +13,7 @@ class TestProteinNet(unittest.TestCase):
         model_name = tempdir.name.split('/')[-1]
         params = NetParams.generate_net_params(name=model_name,
                                                conv_features=[FEATURES.ccmpred, FEATURES.evfold],
-                                               arch=ARCHS.periscope,
+                                               arch=ARCHS.periscope2,
                                                k=10,
                                                save_summary_steps=2,
                                                save_checkpoints_steps=20,
@@ -67,7 +67,7 @@ class TestProteinNet(unittest.TestCase):
         params = NetParams.generate_net_params(
             name=model_name,
             conv_features=[FEATURES.ccmpred, FEATURES.reference_dm, FEATURES.evfold],
-            arch=ARCHS.periscope,
+            arch=ARCHS.periscope2,
             save_summary_steps=1,
             save_checkpoints_steps=1,
             epochs=1,
@@ -78,11 +78,12 @@ class TestProteinNet(unittest.TestCase):
             filter_shape=(5, 5),
             dilation=1,
             num_layers=2,
-            k=9,
+            k=10,
             lr=0.001,
             train_dataset='testing',
             eval_dataset='testing',
-            test_dataset='testing')
+            test_dataset='testing',
+            templates_dropout=0.9)
 
         if not LOCAL:
             cnn_pred = ContactMapEstimator(params)

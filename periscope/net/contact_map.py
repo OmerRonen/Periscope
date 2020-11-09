@@ -114,6 +114,11 @@ class PeriscopeNet(ProteinNet):
         return partial(periscope_op,
                        conv_params=self._conv_arch_params)
 
+    # @property
+    # def weights(self):
+    #     return partial(get_weights,
+    #                    conv_params=self._conv_arch_params)
+
     def get_inputs(self, features):
         periscope_input = {
             'dms': features[FEATURES.k_reference_dm_conv],
@@ -227,7 +232,8 @@ _nets = {ARCHS.conv: ConvProteinNet,
          ARCHS.multi_structure_ccmpred_2: MsCCmpredProteinNetSimple,
          ARCHS.ms_ss_ccmpred: MsSsCCmpredProteinNet,
          ARCHS.ms_ss_ccmpred_pssm: MsSsCCmpredPssmProteinNet,
-         ARCHS.periscope: PeriscopeNet}
+         ARCHS.periscope: PeriscopeNet,
+         ARCHS.periscope2: PeriscopeNet}
 
 
 def get_model_by_name(model_name, test_dataset=None):
@@ -284,6 +290,8 @@ class ContactMapEstimator:
             'model_path': self.artifacts_path,
         }
         train_epochs = self._train_params['epochs']
+        t_drop = self._train_params['templates_dropout']
+
         eval_epochs = 1
         test_epochs = 1
         self._generator = Generators[self._arch]
@@ -292,6 +300,7 @@ class ContactMapEstimator:
                                                   epochs=train_epochs,
                                                   batch_size=self._batch_size,
                                                   dataset=train_dataset_name,
+                                                  templates_dropout=t_drop,
                                                   **self._data_generator_args)
         self.eval_data_manager = self._generator(proteins=eval_proteins,
                                                  mode=tf.estimator.ModeKeys.TRAIN,
@@ -339,13 +348,16 @@ class ContactMapEstimator:
             inputs = self.net.get_inputs(features)
             seq_len = features['sequence_length'][0, 0]
 
-            contact_pred = self.net.predicted_contact_map(**inputs)
+            contact_pred, weights = self.net.predicted_contact_map(**inputs)
+            # weights = tf.constant([42])
+            # if self._arch in [ARCHS.periscope, ARCHS.periscope2]:
+            #     weights = self.net.weights(**inputs)
 
-            max = tf.reduce_max(contact_pred)
+            max_val = tf.reduce_max(contact_pred)
 
             if mode == tf.estimator.ModeKeys.PREDICT:
                 return tf.estimator.EstimatorSpec(mode,
-                                                  predictions=contact_pred)
+                                                  predictions={'cm': contact_pred, 'weights': weights})
 
             cm = features['contact_map']
 
@@ -372,17 +384,18 @@ class ContactMapEstimator:
             logging_hook = tf.train.LoggingTensorHook(
                 {
                     "loss": loss,
-                    'max': max,
+                    'max': max_val,
                     'step': global_step
                 },
                 every_n_iter=100)
-
-            return tf.estimator.EstimatorSpec(mode,
+            spec = tf.estimator.EstimatorSpec(mode,
                                               loss=loss,
                                               train_op=train_op,
                                               eval_metric_ops=metrics,
                                               predictions=contact_pred,
                                               training_hooks=[logging_hook])
+
+            return spec
 
         return model_fn
 
@@ -477,4 +490,3 @@ class ContactMapEstimator:
         vars = self.estimator.get_variable_names()
         n_params = int(sum([np.prod(self.estimator.get_variable_value(var).shape) for var in vars]))
         return n_params
-
