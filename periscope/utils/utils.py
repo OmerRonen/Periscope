@@ -7,18 +7,15 @@ import numpy as np
 import pandas as pd
 import yaml
 from Bio.Seq import Seq
-# from numba import njit
-# from numba.typed import List
 from os import path
 from Bio import SeqIO
-from Bio.PDB.PDBParser import PDBParser
 from Bio.PDB import Polypeptide, is_aa, PDBIO, Select, PDBParser
 
 import pickle
 import time
 import logging
 
-from .constants import PATHS, LOCAL, DATASETS, DATASETS_FULL, N_REFS
+from .constants import PATHS, LOCAL, DATASETS, N_REFS
 
 LOGGER = logging.getLogger(__name__)
 warnings.simplefilter('ignore', yaml.YAMLLoadWarning)

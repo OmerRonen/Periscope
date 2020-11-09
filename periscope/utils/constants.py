@@ -83,7 +83,7 @@ _drive_path = '/Users/omerronen/Google Drive (omerronen10@gmail.com)/Periscope'
 _data_path = os.path.join(_drive_path, 'data') if LOCAL else os.path.join(_periscope_path, 'data')
 Paths = namedtuple(
     'Paths',
-    'drive data msa msa_structures hhblits ccmpred evfold pdb modeller models periscope proteins src')
+    'drive data msa msa_structures hhblits ccmpred evfold pdb modeller models periscope proteins src raptor')
 PATHS = Paths(
     drive='/Users/omerronen/Google Drive (omerronen10@gmail.com)/Periscope/models',
     data=_data_path,
@@ -97,7 +97,8 @@ PATHS = Paths(
     models=_models_path,
     periscope=_periscope_path,
     proteins=os.path.join(_periscope_path, 'data', 'proteins'),
-    src=f'{_base_path}/src'
+    src=f'{_base_path}/src',
+    raptor=f'{_base_path}/src/RaptorX-3DModeling/DL4DistancePrediction4/Scripts'
 )
 
 PREDICTON_FEATURES = {
