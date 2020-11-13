@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import warnings
 
+import Bio
 from Bio import SeqIO, PDB
 from Bio.Data import SCOPData
 from Bio.PDB.DSSP import dssp_dict_from_pdb_file
@@ -18,6 +19,7 @@ from .utils import pkl_load, get_modeller_pdb_file, get_pdb_fname, check_path, p
 LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 warnings.simplefilter('ignore', PDBConstructionWarning)
+path_to_dssp = os.path.join(PATHS.src, 'dssp-2.3.0/mkdssp')
 
 
 class Protein:
@@ -95,12 +97,16 @@ class Protein:
         return self.get_chain_seq()
 
     @property
-    def _bio_chain(self):
+    def model(self):
         structure = self.pdb_parser.get_structure(id='strcuture',
                                                   file=self.pdb_fname)
         model = structure[0]
+        return model
+
+    @property
+    def _bio_chain(self):
         try:
-            chain = model[self.chain] if not self._is_modeller else list(model.get_chains())[0]
+            chain = self.model[self.chain] if not self._is_modeller else list(self.model.get_chains())[0]
         except KeyError:
             return
         return chain
@@ -133,6 +139,10 @@ class Protein:
         residues = [r for r in self._bio_chain.get_residues() if r.full_id[3][0] != 'W']
         return residues
 
+    def get_dssp_dict(self):
+        dssp_dict = dssp_dict_from_pdb_file(self.pdb_fname)[0]
+        return dssp_dict
+
     @property
     def modeller_str_seq_hetatm(self):
 
@@ -160,14 +170,48 @@ class Protein:
         return residues[0].full_id[3][1], residues[-1].full_id[3][1]
 
     @property
-    def ss3(self):
+    def dssp(self):
+        dssp = Bio.PDB.DSSP(self.model,
+                            self.pdb_fname,
+                            dssp=path_to_dssp)
+        return dssp
 
-        mapping = {'H': 'H', "G": "H", 'I': 'H', 'E': 'E', 'B': "E", 'S': "C", 'T': 'C', 'C': "C", '-': '-'}
+    @property
+    def ss_acc(self):
+        ss = self._get_secondary_structure()
+        acc = self._get_solvent_accessibility()
+        return np.concatenate([ss, acc], axis=1)
 
-        dssp_dict = dssp_dict_from_pdb_file(self.pdb_fname)[0]
-        ss_seq = np.array([mapping[dssp_dict[k][1]] for k in dssp_dict if k[0] == self.chain])
+    def _get_solvent_accessibility(self):
+        na_arr = np.empty(shape=(len(self.str_seq), 1))
+        na_arr[:] = np.nan
+        try:
+            dssp = self.dssp
+        except Exception:
+            return na_arr
 
-        return ''.join(ss_seq)
+        def _is_valid(r):
+            if r.id[2] != ' ':
+                return False
+            return r.id[0] == ' ' or r.id[0] == 'H_MSE'
+
+        accessible_surface_area = []
+
+        for residue in self._get_residues():
+            if _is_valid(residue):
+                try:
+
+                    accessible_surface_area.append(
+                        dssp[residue.get_full_id()[2:]][3])
+                    if accessible_surface_area[-1] == 'NA':
+                        accessible_surface_area[-1] = np.nan
+                except:
+                    accessible_surface_area.append(np.nan)
+
+        accessible_surface_area = np.expand_dims(np.array(
+            accessible_surface_area, dtype=np.float32), axis=1)
+
+        return accessible_surface_area
 
     def _get_secondary_structure(self):
 
@@ -176,7 +220,7 @@ class Protein:
 
         if os.path.isfile(ss_file):
             ss = pkl_load(ss_file)
-            if ss.shape[0] == len(self.sequence):
+            if ss.shape[0] == len(self.str_seq):
                 return ss
 
         one_hot_dict = {}
@@ -184,28 +228,25 @@ class Protein:
         for i, k in enumerate(ss_keys):
             one_hot_dict[k] = np.zeros(shape=(len(ss_keys),))
             one_hot_dict[k][i] = 1
-        try:
-            pdb_seq = ''.join(self.sequence)
-        except TypeError:
-            return
-        ss_nas = np.stack([one_hot_dict['-'] for i in range(len(pdb_seq))])
+
+        ss_nas = np.stack([one_hot_dict['-'] for i in range(len(self.str_seq))])
 
         try:
-            dssp_dict = dssp_dict_from_pdb_file(self.pdb_fname)[0]
+            dssp_dict = self.get_dssp_dict()
         except Exception:
             return ss_nas
 
         dssp_seq_arr = np.array([dssp_dict[k][0] for k in dssp_dict if k[0] == self.chain])
 
-        inds = self._aa_mask[0:len(dssp_seq_arr)]
+        # inds = self._aa_mask[0:len(dssp_seq_arr)]
 
-        dssp_seq = "".join(dssp_seq_arr[inds])
+        dssp_seq = "".join(dssp_seq_arr)
 
-        if len(pdb_seq) != len(dssp_seq):
+        if len(self.str_seq) != len(dssp_seq):
             return ss_nas
-        ss = np.stack([one_hot_dict[dssp_dict[k][1]] for k in dssp_dict if k[0] == self.chain])[inds, ...]
+        ss = np.stack([one_hot_dict[dssp_dict[k][1]] for k in dssp_dict if k[0] == self.chain])
 
-        # pkl_save(ss_file, ss)
+        pkl_save(ss_file, ss)
         return ss
 
     def get_chain_seq(self):

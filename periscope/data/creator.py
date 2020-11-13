@@ -21,7 +21,8 @@ from ..utils.constants import PATHS, DATASETS, AMINO_ACID_STATS, PROTEIN_BOW_DIM
 from ..utils.utils import (convert_to_aln, write_fasta, MODELLER_VERSION, create_sifts_mapping, read_raw_ec_file,
                            pkl_save, pkl_load, compute_structures_identity_matrix, VERSION, get_modeller_pdb_file,
                            get_target_path, get_target_ccmpred_file, check_path, read_fasta, run_clustalo,
-                           get_aln_fasta, get_predicted_pdb, save_chain_pdb, get_a3m_fname, get_target_scores_file)
+                           get_aln_fasta, get_predicted_pdb, save_chain_pdb, get_a3m_fname, get_target_scores_file,
+                           timefunc)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -1522,6 +1523,16 @@ class DataCreator:
         return self._replace_nas(ref)
 
     @staticmethod
+    def _get_aln_ss_acc(seq, target):
+        ss_acc = np.empty((len(seq), 9))
+        ss_acc[:] = np.nan
+        inds_aln = np.where(np.array(list(seq)) != '-')[0]
+        inds_pdb = np.array(list(range(len(inds_aln))))
+        ss_acc_target = Protein(target[0:4], target[4]).ss_acc
+        ss_acc[inds_aln, ...] = ss_acc_target[inds_pdb, ...]
+        return ss_acc
+
+    @staticmethod
     def _get_aln_dm(seq, target):
         dm = np.empty((len(seq), len(seq)))
         dm[:] = np.nan
@@ -1589,6 +1600,38 @@ class DataCreator:
 
         return self._replace_nas(aligned_dms)
 
+    def _get_reference_ss_acc(self):
+        file = os.path.join(self._msa_data_path, 'k_acc_ss.pkl')
+        if os.path.isfile(file):
+            output = pkl_load(file)
+            if output.shape[2] == self._n_refs:
+                return output
+        structures = self._get_k_closest_references()
+        if structures is None:
+            return
+        self._get_clustalo_msa()
+        aln = self._aln
+        try:
+            acc_ss = np.stack([self._get_aln_ss_acc(s.seq, s.id) for s in aln[1:]], axis=2)
+        except ValueError:
+            return
+        target_inds = np.where(np.array(list(aln[0].seq)) != '-')[0]
+
+        aligned_acc_ss = acc_ss[target_inds, :]
+        n_strucs = aligned_acc_ss.shape[-1]
+
+        if n_strucs < self._n_refs:
+            shape = (aligned_acc_ss.shape[0],9,  self._n_refs - n_strucs)
+            zero_array = np.zeros(shape)
+
+            aligned_acc_ss = np.concatenate([zero_array, aligned_acc_ss], axis=2)
+        if n_strucs > self._n_refs:
+            aligned_acc_ss = aligned_acc_ss[..., n_strucs - self._n_refs: n_strucs]
+
+        output = self._replace_nas(aligned_acc_ss)
+        pkl_save(file, output)
+        return output
+
     @property
     def k_reference_dm_test(self):
 
@@ -1604,7 +1647,7 @@ class DataCreator:
 
         self._get_clustalo_msa()
         aln = self._aln
-        dms_fname = os.path.join(self._msa_data_path, 'dms_test.pkl')
+        dms_fname = os.path.join(self._msa_data_path, 'dms_tst.pkl')
         if not os.path.isfile(dms_fname):
             try:
                 dms = np.stack([self._get_aln_dm(s.seq, s.id) for s in aln[1:]], axis=2)
@@ -1661,6 +1704,16 @@ class DataCreator:
     @property
     def seq_refs_test(self):
         return self._get_seq_refs_test()
+
+    @property
+    def seq_refs_ss_acc(self):
+        seqs = self._get_seq_refs_test()
+        if seqs is None:
+            return
+        acc_ss = self._get_reference_ss_acc()
+        if acc_ss is None:
+            return
+        return np.concatenate([seqs, acc_ss], axis=1)
 
     @property
     def seq_refs(self):

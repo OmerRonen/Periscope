@@ -62,16 +62,17 @@ def get_model_predictions(model: ContactMapEstimator, proteins=None, dataset=Non
     if os.path.isfile(prediction_file) and proteins is None:
         return pkl_load(prediction_file)
     if proteins is not None:
-        predicted_cms = list(model.get_custom_predictions_gen(proteins, dataset))
-    # elif old:
-    #     predicted_cms = list(model.get_eval_predictions_generator())
+        preds = list(model.get_custom_predictions_gen(proteins, dataset))
     else:
-        predicted_cms = list(model.get_predictions_generator())
+        preds = list(model.get_predictions_generator())
+
     proteins = pkl_load(
         os.path.join(model.artifacts_path, f'predicted_proteins_{dataset}.pkl'))
-    model_predictions = {'cm': {}, 'logits': {}}
+    model_predictions = {'cm': {}, 'logits': {}, 'weights':{}}
 
-    for protein, logits in dict(zip(proteins, predicted_cms)).items():
+    for protein, pred in dict(zip(proteins, preds)).items():
+        logits = pred['cm']
+        weights = pred['weights']
         contact_probs = logits[..., 0:1]
         l = contact_probs.shape[1]
         # top l/2 predictions
@@ -82,6 +83,7 @@ def get_model_predictions(model: ContactMapEstimator, proteins=None, dataset=Non
             1, 0)
 
         model_predictions['logits'][protein] = contact_probs
+        model_predictions['weights'][protein] = weights
 
     if proteins is None:
         pkl_save(filename=prediction_file, data=model_predictions)
