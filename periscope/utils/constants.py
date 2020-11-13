@@ -110,7 +110,7 @@ NUM_HOMOLOGOUS = 500
 Architectures = namedtuple('Architectures',
                            'conv references_resnet multi_structure multi_structure_pssm multi_structure_ccmpred'
                            ' multi_structure_ccmpred_2 ms_ccmpred_pssm ms_ss_ccmpred_pssm ms_ss_ccmpred ms_ss_ccmpred_2'
-                           ' periscope periscope2')
+                           ' periscope periscope2 templates evo')
 
 ARCHS = Architectures(conv='conv',
                       references_resnet='references_resnet',
@@ -123,7 +123,9 @@ ARCHS = Architectures(conv='conv',
                       ms_ss_ccmpred='ms_ss_ccmpred',
                       ms_ss_ccmpred_2='ms_ss_ccmpred_2',
                       periscope='periscope',
-                      periscope2='periscope2')
+                      periscope2='periscope2',
+                      templates='templates',
+                      evo='evo')
 
 Datasets = namedtuple('Datasets', 'train eval pfam testing cameo membrane cameo41')
 

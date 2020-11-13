@@ -1,4 +1,5 @@
 import os
+from collections import OrderedDict
 
 import numpy as np
 import pandas as pd
@@ -10,7 +11,7 @@ from sklearn.metrics import roc_curve
 
 from ..utils.constants import PATHS, DATASETS
 from ..utils.protein import Protein
-from ..utils.utils import get_target_dataset, check_path
+from ..utils.utils import get_target_dataset, check_path, pkl_load, get_data
 
 
 def _read_csv_np(filename):
@@ -100,7 +101,7 @@ def _get_legend_info(plot_matrix):
 def _process_prediction(pred, gt):
     l = gt.shape[0]
     mask = _get_mask(l)
-    if pred is None or pred.shape!=gt.shape:
+    if pred is None or pred.shape != gt.shape:
         return gt * mask
     p = pred.copy()
 
@@ -128,7 +129,7 @@ def _plot_mat(plot_matrix, pred2_name, fig_name=None, labels=None):
     plt.figure(figsize=fig_size, clear=True)
 
     ax1 = plt.subplot(121)
-    l=plot_matrix.shape[0]
+    l = plot_matrix.shape[0]
 
     cmap = _get_plot_colors(plot_matrix)
     legend_info = _get_legend_info(plot_matrix)
@@ -138,24 +139,26 @@ def _plot_mat(plot_matrix, pred2_name, fig_name=None, labels=None):
 
     ax1.matshow(plot_matrix, cmap=cmap, origin='lower')
 
-    ax1.legend(handles=legend_info,loc='upper center', bbox_to_anchor=(0.5, 1.3),
-              ncol=1, fancybox=True, shadow=True, prop={'size': 18})
+    ax1.legend(handles=legend_info, loc='upper center', bbox_to_anchor=(0.5, 1.3),
+               ncol=1, fancybox=True, shadow=True, prop={'size': 18})
     ax1.plot([0, l], [0, l], c=".3")
 
     ax1.set_xticks([], [])
     ax1.set_yticks([], [])
-    # ax1.text(0.05,
-    #          0.90,
-    #          pred2_name,
-    #          fontsize=8,
-    #          color='blue',
-    #          transform=ax1.transAxes)
-    # ax1.text(0.80,
-    #          0.05,
-    #          'Periscope',
-    #          fontsize=8,
-    #          color='blue',
-    #          transform=ax1.transAxes)
+    ax1.text(-0.05,
+             0.80,
+             pred2_name,
+             fontsize=16,
+             color='blue',
+             transform=ax1.transAxes,
+             rotation=90)
+    ax1.text(1.05,
+             0.05,
+             'Periscope',
+             fontsize=16,
+             color='blue',
+             transform=ax1.transAxes,
+             rotation=90)
     # if labels is not None:
     #     ax1.tick_params(axis="x", bottom=True, top=False, labelbottom=True, labeltop=False, color='blue')
     #
@@ -208,29 +211,75 @@ def dataset_analysis(model_name, dataset):
             pass
 
 
-def evaluate_pred_vs_ref(model_name, target):
+def plot_weights(model_name, target, order=1):
+    data = get_data(model_name, target)
+    weights = data['weights']
+    sort_w = np.argsort(weights, axis=-1)
+    max_w = sort_w[..., -1 * order]
+    sort_w_value = np.sort(weights, axis=-1)
+    w_alpha = sort_w_value[..., -1*order]
+    fig_size = (21, 14)
+    plt.figure(figsize=fig_size, clear=True)
+
+    ax1 = plt.subplot(121)
+    im = ax1.matshow(max_w, interpolation='none', alpha=w_alpha, origin='lower')
+    values = np.unique(max_w.ravel())
+    is_evo_net = weights.shape[-1] == 2
+    ks = {10: "ccmpred", 11: "evfold"} if not is_evo_net else {0: "ccmpred", 1: "evfold"}
+    if not is_evo_net:
+        aln = data['alignment']
+        n_refs = len(aln) - 1
+        j = 10 - n_refs
+        for t in aln[1:]:
+            ks[j] = t.id
+            j += 1
+
+    # get the colors of the values, according to the
+    # colormap used by imshow
+
+    colors = {value: im.cmap(im.norm(value)) for value in values}
+    # create a patch (proxy artist) for every color
+    patches = [mpatches.Patch(color=colors[i], label="{l}".format(l=ks[i])) for i in values]
+    # put those patched as legend-handles into the legend
+    ax1.legend(handles=patches, loc='upper right', bbox_to_anchor=(1.5, 0.8),
+               ncol=1, fancybox=True, shadow=True, prop={'size': 18})
+    if order==1:
+        plt.title('Largest Weight')
+    if order==2:
+        plt.title('Second Largest Weight')
+    ax1.set_xticks([], [])
+    ax1.set_yticks([], [])
     dataset = get_target_dataset(target)
-    prediction_path = os.path.join(PATHS.drive, model_name, 'predictions', dataset, target)
+    # prediction_path = os.path.join(PATHS.drive, model_name, 'predictions', dataset, target)
+    fig_path = os.path.join(PATHS.drive, model_name, 'artifacts', dataset, target)
+    fig_name = os.path.join(fig_path, f'weights_{order}.png')
+    plt.savefig(fig_name)
+
+
+def evaluate_pred_vs_ref(model_name, target):
+    data = get_data(model_name, target)
+    dataset = get_target_dataset(target)
     fig_path = os.path.join(PATHS.drive, model_name, 'artifacts', dataset, target)
     fig_name = os.path.join(fig_path, 'pred_ref.png')
     check_path(fig_path)
-    gt = _read_csv_np(os.path.join(prediction_path, 'gt.csv'))
+    gt = data['gt']
     l = gt.shape[0]
-    pred_model, _ = _get_cm(_read_csv_np(os.path.join(prediction_path, 'prediction.csv')), l)
-    refs_contact = _read_csv_np(os.path.join(prediction_path, 'refs_contacts.csv'))
+    pred_model, _ = _get_cm(data['prediction'], l)
+    refs_contact = data['refs_contacts']
     labels = list(Protein(target[0:4], target[4]).str_seq)
-    evaluation_plot(pred1=pred_model, pred2=refs_contact, gt=gt, fig_name=fig_name, pred2_name='References', labels=labels)
+    evaluation_plot(pred1=pred_model, pred2=refs_contact, gt=gt, fig_name=fig_name, pred2_name='References',
+                    labels=labels)
 
 
 def evaluate_pred_vs_modeller(model_name, target):
+    data = get_data(model_name, target)
     dataset = get_target_dataset(target)
-    prediction_path = os.path.join(PATHS.drive, model_name, 'predictions', dataset, target)
     fig_path = os.path.join(PATHS.drive, model_name, 'artifacts', dataset, target)
     fig_name = os.path.join(fig_path, 'pred_mod.png')
     check_path(fig_path)
-    gt = _read_csv_np(os.path.join(prediction_path, 'gt.csv'))
+    gt = data['gt']
     l = gt.shape[0]
-    pred_model, _ = _get_cm(_read_csv_np(os.path.join(prediction_path, 'prediction.csv')), l)
+    pred_model, _ = _get_cm(data['prediction'], l)
     modeller = _read_csv_np(os.path.join(PATHS.data, dataset, 'modeller', f'{target}.csv'))
     if modeller is None:
         return
@@ -239,18 +288,62 @@ def evaluate_pred_vs_modeller(model_name, target):
     evaluation_plot(pred1=pred_model, pred2=modeller, gt=gt, fig_name=fig_name, pred2_name='Modeller', labels=labels)
 
 
-def evaluate_pred_roc(model_name, target):
+def _get_raptor_logits(target):
+    drive = '/Users/omerronen/Google Drive (omerronen10@gmail.com)/Periscope'
+    raptor_path = os.path.join(drive, 'raptorx')
+    target_file = os.path.join(raptor_path, f'{target}.predictedDistMatrix.pkl')
+    if not os.path.isfile(target_file):
+        return
+    raptor_data = pkl_load(target_file)
+    return raptor_data[3]['CbCb']
+
+
+def evaluate_pred_vs_raptor(model_name, target):
+    data = get_data(model_name, target)
     dataset = get_target_dataset(target)
-    prediction_path = os.path.join(PATHS.drive, model_name, 'predictions', dataset, target)
+    fig_path = os.path.join(PATHS.drive, model_name, 'artifacts', dataset, target)
+    fig_name = os.path.join(fig_path, 'pred_raptor.png')
+    check_path(fig_path)
+    gt = data['gt']
+    l = gt.shape[0]
+    pred_model, _ = _get_cm(data['prediction'], l)
+    raptor_logits = _get_raptor_logits(target)
+    if raptor_logits is None:
+        return
+    pred_raptor, _ = _get_cm(raptor_logits, l)
+    labels = list(Protein(target[0:4], target[4]).str_seq)
+
+    evaluation_plot(pred1=pred_model, pred2=pred_raptor, gt=gt, fig_name=fig_name, pred2_name='Raptor', labels=labels)
+
+
+def evaluate_pred_vs_evo(model_name, target):
+    for evo in ['ccmpred', 'evfold']:
+        data = get_data(model_name, target)
+        dataset = get_target_dataset(target)
+        fig_path = os.path.join(PATHS.drive, model_name, 'artifacts', dataset, target)
+        fig_name = os.path.join(fig_path, f'pred_{evo}.png')
+        check_path(fig_path)
+        gt = data['gt']
+        l = gt.shape[0]
+        pred_model, _ = _get_cm(data['prediction'], l)
+        pred_evo, _ = _get_cm(data[evo], l)
+        labels = list(Protein(target[0:4], target[4]).str_seq)
+
+        evaluation_plot(pred1=pred_model, pred2=pred_evo, gt=gt, fig_name=fig_name, pred2_name=evo, labels=labels)
+
+
+def evaluate_pred_roc(model_name, target):
+    data = get_data(model_name, target)
+    dataset = get_target_dataset(target)
     fig_path = os.path.join(PATHS.drive, model_name, 'artifacts', dataset, target)
     fig_name = os.path.join(fig_path, 'roc.png')
     check_path(fig_path)
-    gt = _read_csv_np(os.path.join(prediction_path, 'gt.csv'))
+    gt = data['gt']
 
     l = gt.shape[0]
     mask = _get_mask(l)
-    pred_logits = _read_csv_np(os.path.join(prediction_path, 'prediction.csv')) * mask
-    refs = _read_csv_np(os.path.join(prediction_path, 'refs_contacts.csv')) * mask
+    pred_logits = data['prediction'] * mask
+    refs = data['refs_contacts'] * mask
     modeller = _read_csv_np(os.path.join(PATHS.data, dataset, 'modeller', f'{target}.csv')) * mask
     gt *= mask
     _plot_roc(pred_logits, gt, modeller, refs, fig_name=fig_name)
@@ -316,3 +409,10 @@ def make_art(model_name, target):
     evaluate_pred_vs_ref(model_name, target)
     evaluate_pred_roc(model_name, target)
     evaluate_pred_vs_modeller(model_name, target)
+    evaluate_pred_vs_raptor(model_name, target)
+    evaluate_pred_vs_evo(model_name, target)
+    plot_weights(model_name, target)
+    try:
+        plot_weights(model_name, target, 2)
+    except Exception:
+        pass

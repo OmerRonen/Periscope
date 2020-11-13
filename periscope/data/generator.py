@@ -114,16 +114,20 @@ class DataGenerator:
 
                 batched_delivered += 1
 
-    def _bin_array(self, data_seeker):
+    def _bin_array(self, target, l):
         """Returns the correct label given the number of bins
 
         Args:
-            data_handler (ProteinDataHandler): out data handler
+            target (str): name of the protein
+            l (int): sequence length
 
         Returns:
             np.array: binned label of shape (l, l, num_bins)
 
         """
+        data_seeker = DataSeeker(target)
+        if data_seeker.target_pdb_dm.shape[0] != l:
+            data_seeker = DataCreator(target)
         if self._num_bins == 1:
             return np.expand_dims(data_seeker.target_pdb_dm, axis=2)
 
@@ -227,7 +231,7 @@ class MsSsCCmpredGenerator(DataGenerator):
             return
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            cm = self._bin_array(data_seeker)
+            cm = self._bin_array(protein, target_sequence_length)
             data['contact_map'] = cm if l is None else self._pad_feature(l, cm)
 
         if self._mode == tf.estimator.ModeKeys.PREDICT:
@@ -332,7 +336,7 @@ class MsCCmpredGenerator(DataGenerator):
             return
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            cm = self._bin_array(data_seeker)
+            cm = self._bin_array(protein, target_sequence_length)
             data['contact_map'] = cm if l is None else self._pad_feature(l, cm)
 
         if self._mode == tf.estimator.ModeKeys.PREDICT:
@@ -406,7 +410,7 @@ class MsSsCCmpredPssmGenerator(DataGenerator):
             return
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            cm = self._bin_array(data_seeker)
+            cm = self._bin_array(protein, target_sequence_length)
             data['contact_map'] = cm if l is None else self._pad_feature(l, cm)
 
         if self._mode == tf.estimator.ModeKeys.PREDICT:
@@ -477,7 +481,7 @@ class ConvGenerator(DataGenerator):
             return
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            cm = self._bin_array(data_seeker)
+            cm = self._bin_array(protein, target_sequence_length)
             data['contact_map'] = cm if l is None else self._pad_feature(l, cm)
 
         if self._mode == tf.estimator.ModeKeys.PREDICT:
@@ -592,7 +596,7 @@ class PeriscopeGenerator(DataGenerator):
             return
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            cm = self._bin_array(data_seeker)
+            cm = self._bin_array(protein, target_sequence_length)
             data['contact_map'] = cm if l is None else self._pad_feature(l, cm)
 
         if self._mode == tf.estimator.ModeKeys.PREDICT:
@@ -607,8 +611,7 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
     def required_shape_types(self):
         shapes = {
             FEATURES.seq_refs: (None, PROTEIN_BOW_DIM + 9, self._n_refs),
-            FEATURES.seq_target: (None, PROTEIN_BOW_DIM),
-            FEATURES.evfold: (None, None, 1),
+            # FEATURES.evfold: (None, None, 1),
             FEATURES.k_reference_dm_conv: (None, None, self._n_refs),
             FEATURES.ccmpred: (None, None, 1),
             FEATURES.pwm_w: (None, 21),
@@ -634,8 +637,7 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
                 np.random.randint(low=0, high=2, size=(l, l, 1)), np.float32)
         data[FEATURES.seq_refs] = np.random.random(
             (l, PROTEIN_BOW_DIM + 9, self._n_refs))
-        data[FEATURES.seq_target] = np.random.random((l, PROTEIN_BOW_DIM))
-        data[FEATURES.evfold] = np.random.random((l, l, 1))
+        # data[FEATURES.evfold] = np.random.random((l, l, 1))
         data[FEATURES.ccmpred] = np.random.random((l, l, 1))
         data[FEATURES.k_reference_dm_conv] = np.random.random(
             (l, l, self._n_refs))
@@ -649,15 +651,207 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
         return data
 
     def _yield_protein_data(self, protein, l=None):
+        drop = np.random.binomial(1, self._templates_dropout)
 
         file = os.path.join(self._tmp_dir.name, f'{protein}.pkl')
         if os.path.isfile(file) and self._mode != tf.estimator.ModeKeys.PREDICT:
             LOGGER.info(f"loading {file}")
-            return pkl_load(file)
+            data = pkl_load(file)
+            if drop == 1:
+                LOGGER.info('Templates dropped')
+                data[FEATURES.k_reference_dm_conv] = np.zeros_like(data[FEATURES.k_reference_dm_conv])
+            return data
 
         data = {}
         data_seeker = DataSeeker(protein, n_refs=self._n_refs)
         data_creator = DataCreator(protein, n_refs=self._n_refs)
+        LOGGER.info(protein)
+
+        try:
+            # start_time = time.time()
+            # evfold = np.expand_dims(data_seeker.evfold, axis=2)
+            # end_time = time.time()
+            # LOGGER.info(f'Evfold takes  {end_time-start_time}')
+            # start_time = time.time()
+            ccmpred = np.expand_dims(data_seeker.ccmpred, axis=2)
+            # end_time = time.time()
+            # LOGGER.info(f'CCmpred takes  {end_time-start_time}')
+            # if ccmpred.shape != evfold.shape:
+            #     return
+            # data[FEATURES.evfold] = evfold
+            data[FEATURES.ccmpred] = ccmpred
+        except Exception as e:
+            LOGGER.error(f'Data error for protein {protein}:\n{str(e)}')
+            return
+        try:
+            data[FEATURES.k_reference_dm_conv] = data_creator.k_reference_dm_test
+            if drop == 1:
+                LOGGER.info('Templates dropped')
+                data[FEATURES.k_reference_dm_conv] = np.zeros_like(data_creator.k_reference_dm_test)
+
+            data[FEATURES.seq_refs] = data_creator.seq_refs_ss_acc
+            data[FEATURES.pwm_w] = data_seeker.pwm_w
+            data[FEATURES.pwm_evo] = data_seeker.pwm_evo
+            data[FEATURES.conservation] = data_seeker.conservation
+            data[FEATURES.beff] = data_seeker.beff
+
+        except Exception as e:
+            LOGGER.error(f'Data error for protein {protein}:\n{str(e)}')
+            return
+
+        has_nones = False
+        for f in data:
+            has_nones |= data[f] is None
+        if has_nones:
+            return
+        target_sequence_length = len(data_seeker.protein.sequence)
+        data['sequence_length'] = np.array([target_sequence_length])
+
+        if target_sequence_length >= 650:
+            return
+
+        if self._mode != tf.estimator.ModeKeys.PREDICT:
+            cm = self._bin_array(protein, target_sequence_length)
+            data['contact_map'] = cm if l is None else self._pad_feature(l, cm)
+
+        if self._mode == tf.estimator.ModeKeys.PREDICT:
+            self._yielded.append(protein)
+        if drop:
+            data[FEATURES.k_reference_dm_conv] = data_creator.k_reference_dm_test
+        pkl_save(file, data)
+
+        return data
+
+
+class TemplatesGenerator(DataGenerator):
+    @property
+    def required_shape_types(self):
+        shapes = {
+            FEATURES.seq_refs: (None, PROTEIN_BOW_DIM + 9, self._n_refs),
+            FEATURES.k_reference_dm_conv: (None, None, self._n_refs),
+            FEATURES.pwm_w: (None, 21),
+
+        }
+
+        if self._mode != tf.estimator.ModeKeys.PREDICT:
+            shapes['contact_map'] = (None, None, 1)
+
+        types = {f: tf.float32 for f in shapes}
+        shapes['sequence_length'] = (1,)
+        types['sequence_length'] = tf.int32
+
+        return shapes, types
+
+    def _yield_random_data(self, l):
+        data = {}
+        if self._mode != tf.estimator.ModeKeys.PREDICT:
+            data['contact_map'] = np.array(
+                np.random.randint(low=0, high=2, size=(l, l, 1)), np.float32)
+        data[FEATURES.seq_refs] = np.random.random(
+            (l, PROTEIN_BOW_DIM + 9, self._n_refs))
+        data[FEATURES.k_reference_dm_conv] = np.random.random(
+            (l, l, self._n_refs))
+        data[FEATURES.pwm_w] = np.random.random((l, 21))
+
+        data['sequence_length'] = np.array([l], dtype=np.int32)
+
+        return data
+
+    def _yield_protein_data(self, protein, l=None):
+
+        file = os.path.join(self._tmp_dir.name, f'{protein}.pkl')
+        if os.path.isfile(file) and self._mode != tf.estimator.ModeKeys.PREDICT:
+            LOGGER.info(f"loading {file}")
+            data = pkl_load(file)
+
+            return data
+
+        data = {}
+        data_seeker = DataSeeker(protein, n_refs=self._n_refs)
+        data_creator = DataCreator(protein, n_refs=self._n_refs)
+        LOGGER.info(protein)
+
+        try:
+            data[FEATURES.k_reference_dm_conv] = data_creator.k_reference_dm_test
+            data[FEATURES.seq_refs] = data_creator.seq_refs_ss_acc
+            data[FEATURES.pwm_w] = data_seeker.pwm_w
+
+
+        except Exception as e:
+            LOGGER.error(f'Data error for protein {protein}:\n{str(e)}')
+            return
+
+        has_nones = False
+        for f in data:
+            has_nones |= data[f] is None
+        if has_nones:
+            return
+        target_sequence_length = len(data_seeker.protein.sequence)
+        data['sequence_length'] = np.array([target_sequence_length])
+
+        if target_sequence_length >= 650:
+            return
+
+        if self._mode != tf.estimator.ModeKeys.PREDICT:
+            cm = self._bin_array(protein, target_sequence_length)
+            data['contact_map'] = cm if l is None else self._pad_feature(l, cm)
+
+        if self._mode == tf.estimator.ModeKeys.PREDICT:
+            self._yielded.append(protein)
+
+        pkl_save(file, data)
+
+        return data
+
+
+class EvoGenerator(DataGenerator):
+    @property
+    def required_shape_types(self):
+        shapes = {
+            FEATURES.evfold: (None, None, 1),
+            FEATURES.ccmpred: (None, None, 1),
+            FEATURES.pwm_evo: (None, 21),
+            FEATURES.conservation: (None, 1),
+            FEATURES.beff: (1,)
+
+        }
+
+        if self._mode != tf.estimator.ModeKeys.PREDICT:
+            shapes['contact_map'] = (None, None, 1)
+
+        types = {f: tf.float32 for f in shapes}
+        shapes['sequence_length'] = (1,)
+        types['sequence_length'] = tf.int32
+
+        return shapes, types
+
+    def _yield_random_data(self, l):
+        data = {}
+        if self._mode != tf.estimator.ModeKeys.PREDICT:
+            data['contact_map'] = np.array(
+                np.random.randint(low=0, high=2, size=(l, l, 1)), np.float32)
+
+        data[FEATURES.evfold] = np.random.random((l, l, 1))
+        data[FEATURES.ccmpred] = np.random.random((l, l, 1))
+
+        data[FEATURES.pwm_evo] = np.random.random((l, 21))
+        data[FEATURES.conservation] = np.expand_dims(np.array(np.random.random((l)), dtype=np.float32), axis=1)
+        data[FEATURES.beff] = np.array(np.random.random(1), dtype=np.float32)
+
+        data['sequence_length'] = np.array([l], dtype=np.int32)
+
+        return data
+
+    def _yield_protein_data(self, protein, l=None):
+
+        file = os.path.join(self._tmp_dir.name, f'{protein}.pkl')
+        if os.path.isfile(file) and self._mode != tf.estimator.ModeKeys.PREDICT:
+            LOGGER.info(f"loading {file}")
+            data = pkl_load(file)
+            return data
+
+        data = {}
+        data_seeker = DataSeeker(protein, n_refs=self._n_refs)
         LOGGER.info(protein)
 
         try:
@@ -677,14 +871,7 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
             LOGGER.error(f'Data error for protein {protein}:\n{str(e)}')
             return
         try:
-            data[FEATURES.k_reference_dm_conv] = data_creator.k_reference_dm_test
-            drop = np.random.binomial(1, self._templates_dropout)
-            if drop == 1:
-                LOGGER.info('Templates dropped')
-                data[FEATURES.k_reference_dm_conv] = np.zeros_like(data_creator.k_reference_dm_test)
 
-            data[FEATURES.seq_refs] = data_creator.seq_refs_ss_acc
-            data[FEATURES.pwm_w] = data_seeker.pwm_w
             data[FEATURES.pwm_evo] = data_seeker.pwm_evo
             data[FEATURES.conservation] = data_seeker.conservation
             data[FEATURES.beff] = data_seeker.beff
@@ -692,8 +879,6 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
         except Exception as e:
             LOGGER.error(f'Data error for protein {protein}:\n{str(e)}')
             return
-
-        data[FEATURES.seq_target] = data_creator.seq_target
 
         has_nones = False
         for f in data:
@@ -703,15 +888,16 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
         target_sequence_length = len(data_seeker.protein.sequence)
         data['sequence_length'] = np.array([target_sequence_length])
 
-        if target_sequence_length >= 800:
+        if target_sequence_length >= 650:
             return
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            cm = self._bin_array(data_seeker)
+            cm = self._bin_array(protein, target_sequence_length)
             data['contact_map'] = cm if l is None else self._pad_feature(l, cm)
 
         if self._mode == tf.estimator.ModeKeys.PREDICT:
             self._yielded.append(protein)
+
         pkl_save(file, data)
 
         return data
@@ -723,4 +909,6 @@ Generators = {ARCHS.conv: ConvGenerator,
               ARCHS.multi_structure_ccmpred: MsCCmpredGenerator,
               ARCHS.multi_structure_ccmpred_2: MsCCmpredGenerator,
               ARCHS.periscope: PeriscopeGenerator,
-              ARCHS.periscope2: PeriscopeGeneratorSsAcc}
+              ARCHS.periscope2: PeriscopeGeneratorSsAcc,
+              ARCHS.evo: EvoGenerator,
+              ARCHS.templates: TemplatesGenerator}

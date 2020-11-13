@@ -149,12 +149,75 @@ def get_top_category_accuracy(category, top, predictions, contact_map,
     return _get_true_rate(category_true, category_pred, n_inds, mode)
 
 
+def pairwise_conv_layer_2(input_data,
+                          num_features,
+                          num_filters,
+                          filter_shape,
+                          dilation,
+                          name,
+                          activation=tf.nn.relu,
+                          residual=False):
+    """Applies 2-d convolution with biasing and relu activation
+
+    Args:
+        input_data (tf.Tensor): input to conv layer of shape: batch * l * l * num_features
+        num_features (int): number of pairwise _features
+        num_filters (int): number of output channels
+        filter_shape (tuple[int, int]): shape of convolution filter
+        dilation (int):  dilation factor
+        name (str): layer name
+        activation (function): activation function
+        residual (bool): if true we use residual arch by summing the input with the output
+
+    Returns:
+        tf.Tensor: tensor of shape batch * l * l * num_filters
+
+    """
+
+    # setup the filter input shape for tf.nn.conv_2d
+
+    if residual:
+        num_filters = num_features
+    conv_data = input_data
+    with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
+        conv_filt_shape = [
+            filter_shape[0], filter_shape[1], num_features, num_filters
+        ]
+        for i in range(2):
+            # initialise weights and bias for the filter
+            conv_data = activation(conv_data)
+
+            weights = tf.get_variable(
+                f"W_{i}",
+                shape=conv_filt_shape,
+                initializer=tf.contrib.layers.xavier_initializer())
+            # weights = _print_max_min(weights, 'Conv ')
+            bias = tf.get_variable(
+                f"b_{i}",
+                shape=[num_filters],
+                initializer=tf.contrib.layers.xavier_initializer())
+
+            conv_data = tf.nn.conv2d(conv_data,
+                                     weights, [1, 1, 1, 1],
+                                     dilations=(1, dilation, dilation, 1),
+                                     padding='SAME')
+
+            # add the bias
+            conv_data += bias
+
+        if residual:
+            conv_data += input_data
+
+        return conv_data
+
+
 def pairwise_conv_layer(input_data,
                         num_features,
                         num_filters,
                         filter_shape,
                         dilation,
                         name,
+                        activation=tf.nn.tanh,
                         residual=False):
     """Applies 2-d convolution with biasing and relu activation
 
@@ -165,6 +228,7 @@ def pairwise_conv_layer(input_data,
         filter_shape (tuple[int, int]): shape of convolution filter
         dilation (int):  dilation factor
         name (str): layer name
+        activation (function): activation function
         residual (bool): if true we use residual arch by summing the input with the output
 
     Returns:
@@ -192,7 +256,6 @@ def pairwise_conv_layer(input_data,
             shape=[num_filters],
             initializer=tf.contrib.layers.xavier_initializer())
 
-
         out_layer = tf.nn.conv2d(input_data,
                                  weights, [1, 1, 1, 1],
                                  dilations=(1, dilation, dilation, 1),
@@ -204,7 +267,7 @@ def pairwise_conv_layer(input_data,
         if residual:
             out_layer += input_data
 
-        return tf.nn.tanh(out_layer)
+        return activation(out_layer)
 
 
 def upper_triangular_cross_entropy_loss(predicted_contact_map,
@@ -463,12 +526,13 @@ def _outer_concat(seq):
     return tf.concat([s_2, s_1], axis=3)
 
 
-def _template_op(seq, dm):
+def _template_op(seq, dm, conv_layer=pairwise_conv_layer):
     """Performs Template network operation
 
     Args:
         seq (tf.Tensor): reference sequence of shape (1, l, 22)
         dm (tf.Tensor): reference distance matrix of shape (1, l, l, 1)
+        conv_layer (function): the conv layer to use in deep conv
 
 
     Returns:
@@ -486,19 +550,20 @@ def _template_op(seq, dm):
         s_pair = _outer_concat(s)
         c = tf.concat([s_pair, dm], axis=3)
         logits = deep_conv_op(c, input_shape=PROJECTION_DIM * 2 + 1, num_bins=2, name_prefix='template_op_conv',
-                              residual=True)
+                              residual=True, conv_layer=conv_layer)
 
         logits = logits[..., 1:]
         # logits = _print_max_min(logits, "logits template op")
         return logits
 
 
-def _evo_op(pwn, evo_arr):
+def _evo_op(pwn, evo_arr, conv_layer=pairwise_conv_layer):
     """Performs Template network operation
 
     Args:
         pwn (tf.Tensor): pssm of shape (1, l, 21)
-        evo_arr (tf.Tensor): evfold/ccmpred matrix of shape (1, l, l, 2)
+        evo_arr (tf.Tensor): evfold/ccmpred matrix of shape (1, l, l, 1)
+        conv_layer (function): conv layer for deep conv
 
 
     Returns:
@@ -515,7 +580,7 @@ def _evo_op(pwn, evo_arr):
         s_pair = _outer_concat(s)
         c = tf.concat([s_pair, evo_arr], axis=3)
         logits = deep_conv_op(c, input_shape=PROJECTION_DIM * 2 + 1, num_bins=2, name_prefix='evo_op_conv',
-                              residual=True)
+                              residual=True, conv_layer=conv_layer)
         logits = logits[..., 1:]  # * tf.constant(float(2))
         # logits = _print_max_min(logits, "logits evo op")
         return logits
@@ -526,14 +591,13 @@ def _print_max_min(tensor, name):
                     summarize=7)
 
 
-def _weighting_op_template(seq_template, seq_target):
+def _weighting_op_template(seq_template, seq_target, conv_layer=pairwise_conv_layer):
     """Computes weights for template
 
     Args:
         seq_template (tf.Tensor): template sequence/pwm of shape (1, l, 22/21)
         seq_target (tf.Tensor): target sequence/conservation of shape (1, l, 22/21)
-        beff (tf.Tensor): Effective number of sequences within alignment Beff
-        evo_arr (tf.Tensor): ccmpred/evfold energy matrix of shape (1, l, l, 1)
+        conv_layer (function): conv layer to use for deep conv
 
     Returns:
         tf.Tensor: weights of shape (1, l, l, 1)
@@ -578,12 +642,12 @@ def _weighting_op_template(seq_template, seq_target):
         W = _outer_concat(W_1d)
         input_shape = 2
         W_smooth = deep_conv_op(W, input_shape=input_shape, name_prefix=name_w, num_bins=1, residual=True,
-                                num_layers=2)
+                                num_layers=2, conv_layer=conv_layer)
 
         return W_smooth
 
 
-def _weighting_op_evo(conservation, evo_arr, beff, name):
+def _weighting_op_evo(conservation, evo_arr, beff, name, conv_layer=pairwise_conv_layer):
     """Computes weights for evo
 
     Args:
@@ -591,6 +655,7 @@ def _weighting_op_evo(conservation, evo_arr, beff, name):
         evo_arr (tf.Tensor): ccmpred/evfold energy matrix of shape (1, l, l, 1)
         beff (tf.Tensor): Effective number of sequences within alignment Beff
         name (str): layer name
+        conv_layer (function): conv layer for deep conv
 
 
     Returns:
@@ -609,8 +674,9 @@ def _weighting_op_evo(conservation, evo_arr, beff, name):
 
         W = _print_max_min(W, f"W {name} ")
 
-        W_smooth = deep_conv_op(W, input_shape=2, name_prefix=name, num_bins=1, residual=True, num_layers=2)
-        W_smooth = _print_max_min(W_smooth, "W_smooth evo")
+        W_smooth = deep_conv_op(W, input_shape=2, name_prefix=name, num_bins=1, residual=True, num_layers=2,
+                                conv_layer=conv_layer)
+        W_smooth = _print_max_min(W_smooth, f"W_smooth evo {name}")
 
         return W_smooth
 
@@ -628,16 +694,102 @@ def _weighting_op_evo(conservation, evo_arr, beff, name):
 #         weights = tf.nn.softmax(tf.concat(weights, axis=3), axis=3)
 #         return weights
 
+def evo_op(evfold, ccmpred, pwm_evo, conservation, beff, conv_params):
+    """Neural network that predicts a protein contact map
 
-def periscope_op(dms, seq_refs, seq_target, evfold, ccmpred, pwm_w, pwm_evo, conservation, beff, conv_params):
+    Args:
+        evfold (tf.Tensor): evfold energy matrix of shape (1, l, l, 1)
+        ccmpred (tf.Tensor): ccmpred energy matrix of shape (1, l, l, 1)
+        pwm_evo (tf.Tensor): position specific weight averaged across the entire alignment matrix of shape (1, l, 21)
+        conservation (tf.Tensor): conservation score tensor of shape (1, l, 21)
+        beff (tf.Tensor): Effective number of sequences within alignment Beff
+        conv_params (dict): parameters to the last deep conv layer
+
+
+    Returns:
+        tf.Tensor: predicted contact map of shape (1, l,  l, num_bins)
+
+    """
+    with tf.variable_scope('template', reuse=tf.AUTO_REUSE):
+        weights = []
+
+        evo = [_evo_op(pwm_evo, ccmpred, pairwise_conv_layer_2), _evo_op(pwm_evo, evfold,pairwise_conv_layer_2)]
+        w_ccmpred = _weighting_op_evo(conservation, beff=beff, evo_arr=ccmpred, name='ccmpred',
+                                      conv_layer=pairwise_conv_layer_2)
+        w_evfold = _weighting_op_evo(conservation, beff=beff, evo_arr=evfold, name='evfold',
+                                     conv_layer=pairwise_conv_layer_2)
+        weights += [w_ccmpred, w_evfold]
+
+        evo = tf.concat(evo, axis=3)
+
+        weights = tf.concat(weights, axis=3)
+
+        weights = tf.nn.softmax(
+            weights,
+            axis=3)
+
+        weighted_evo = evo * weights
+
+        conv_inp = tf.reduce_sum(weighted_evo, axis=3, keepdims=True)
+        cmap_hat = deep_conv_op(conv_inp, **conv_params, name_prefix='final',
+                                residual=True, conv_layer=pairwise_conv_layer_2)
+        return cmap_hat, weights
+
+
+def template_op(dms, seq_refs, pwm_w, conv_params):
     """Neural network that predicts a protein contact map
 
     Args:
         dms (tf.Tensor): reference distance matrix of shape (1, l, l, None)
         seq_refs (tf.Tensor): reference sequence of shape (1, l, 22, None)
-        seq_target (tf.Tensor): target sequence of shape (1, l , 22)
+        pwm_w (tf.Tensor): position specific weight matrix focused on the wild type of shape (1, l, 21)
+        conv_params (dict): parameters to the last deep conv layer
+
+
+    Returns:
+        tf.Tensor: predicted contact map of shape (1, l,  l, num_bins)
+
+    """
+    with tf.variable_scope('template', reuse=tf.AUTO_REUSE):
+        weights = []
+        templates = []
+        for i in range(dms.get_shape().as_list()[3]):
+            dm = dms[..., i:i + 1]
+            seq = seq_refs[..., i]
+            max_dm = tf.reduce_max(dm) * tf.ones_like(dm)
+            t = tf.where(max_dm > 0, _template_op(dm=dm, seq=seq, conv_layer=pairwise_conv_layer_2), dm)
+            w = tf.where(max_dm > 0,
+                         _weighting_op_template(seq_template=seq, seq_target=pwm_w, conv_layer=pairwise_conv_layer_2),
+                         dm)
+
+            templates.append(t)
+            weights.append(w)
+
+        templates = tf.concat(templates, axis=3)
+
+        weights = tf.concat(weights, axis=3)
+
+        weights = tf.nn.softmax(
+            weights,
+            axis=3)
+
+        weighted_tempaltes = templates * weights
+        # weighted_tempaltes = _print_max_min(weighted_tempaltes, "weighted_tempaltes")
+
+        conv_inp = tf.reduce_sum(weighted_tempaltes, axis=3, keepdims=True)
+        # conv_inp = _print_max_min(conv_inp, "conv_inp")
+        cmap_hat = deep_conv_op(conv_inp, **conv_params, name_prefix='final',
+                                residual=True, conv_layer=pairwise_conv_layer_2)
+        return cmap_hat, weights
+
+
+def periscope_op(dms, seq_refs, ccmpred, pwm_w, pwm_evo, conservation, beff, conv_params):
+    """Neural network that predicts a protein contact map
+
+    Args:
+        dms (tf.Tensor): reference distance matrix of shape (1, l, l, None)
+        seq_refs (tf.Tensor): reference sequence of shape (1, l, 22, None)
         evfold (tf.Tensor): evfold energy matrix of shape (1, l, l, 1)
-        ccmpred (tf.Tensor): ccmpred energy matrix of shape (1, l, l, 1)
         pwm_w (tf.Tensor): position specific weight matrix focused on the wild type of shape (1, l, 21)
         pwm_evo (tf.Tensor): position specific weight averaged across the entire alignment matrix of shape (1, l, 21)
         conservation (tf.Tensor): conservation score tensor of shape (1, l, 21)
@@ -662,14 +814,14 @@ def periscope_op(dms, seq_refs, seq_target, evfold, ccmpred, pwm_w, pwm_evo, con
             templates.append(t)
             weights.append(w)
 
-        templates += [_evo_op(pwm_evo, ccmpred), _evo_op(pwm_evo, evfold)]
+        templates += [_evo_op(pwm_evo, ccmpred)]#, _evo_op(pwm_evo, evfold)]
         w_ccmpred = _weighting_op_evo(conservation, beff=beff, evo_arr=ccmpred, name='ccmpred')
-        w_evfold = _weighting_op_evo(conservation, beff=beff, evo_arr=evfold, name='evfold')
+        # w_evfold = _weighting_op_evo(conservation, beff=beff, evo_arr=evfold, name='evfold')
         # w_ccmpred = _print_max_min(w_ccmpred, "w_ccmpred weights")
         #
         # w_evfold = _print_max_min(w_evfold, "w_evfold weights")
 
-        weights += [w_ccmpred, w_evfold]
+        weights += [w_ccmpred]
 
         templates = tf.concat(templates, axis=3)
         # templates = _print_max_min(templates, "concat templates")
@@ -679,12 +831,12 @@ def periscope_op(dms, seq_refs, seq_target, evfold, ccmpred, pwm_w, pwm_evo, con
 
         # weights = _print_max_min(weights, "softmax weights")
         K = dms.get_shape().as_list()[3]
-        factor_templates = tf.ones_like(weights[..., :K]) * tf.log(float(2))
-        factor_evo = tf.ones_like(weights[..., K:]) * tf.log(float(K))
+        factor_templates = tf.ones_like(weights[..., :K]) - tf.log(float(K))
+        factor_evo = tf.ones_like(weights[..., K:]) - tf.log(float(1)) # TODO: fix K
         factor = tf.concat([factor_templates, factor_evo], axis=3)
-        # factor = _print_max_min(factor, 'factor')
+        factor = _print_max_min(factor, 'factor')
         weights = tf.nn.softmax(
-            weights * factor,
+            weights + factor,
             axis=3)
 
         weighted_tempaltes = templates * weights
@@ -795,7 +947,8 @@ def deep_conv_op(conv_input_tensor,
                  residual=False,
                  name_prefix=None,
                  input_shape=None,
-                 batch_norm=False):
+                 batch_norm=False,
+                 conv_layer=pairwise_conv_layer):
     """Produces predicted contact map
 
     Args:
@@ -836,7 +989,7 @@ def deep_conv_op(conv_input_tensor,
         num_filters=num_channels,
         filter_shape=filters[0],
         dilation=dilations[0],
-        name=conv_name,
+        name=conv_name
     )
     conv = _print_max_min(conv, f'conv0 {name_prefix}')
 
@@ -845,13 +998,13 @@ def deep_conv_op(conv_input_tensor,
     for i in range(0, num_layers):
         conv_name_i = '%s_conv_h_%s' % (
             name_prefix, i) if name_prefix is not None else 'conv_h_%s' % i
-        conv = pairwise_conv_layer(input_data=previous_layer,
-                                   num_features=num_channels,
-                                   num_filters=num_channels,
-                                   filter_shape=filters[i + 1],
-                                   dilation=dilations[i + 1],
-                                   name=conv_name_i,
-                                   residual=residual)
+        conv = conv_layer(input_data=previous_layer,
+                          num_features=num_channels,
+                          num_filters=num_channels,
+                          filter_shape=filters[i + 1],
+                          dilation=dilations[i + 1],
+                          name=conv_name_i,
+                          residual=residual)
         conv = _print_max_min(conv, f'conv {name_prefix}')
 
         previous_layer = conv
@@ -865,11 +1018,12 @@ def deep_conv_op(conv_input_tensor,
         if num_bins == 1:
             last_name = '%s_last_conv' % name_prefix if name_prefix is not None else 'last_conv'
             last_conv = pairwise_conv_layer(input_data=previous_layer,
-                                            num_features=num_channels,
-                                            num_filters=num_bins,
-                                            dilation=dilation,
-                                            filter_shape=filter_shape,
-                                            name=last_name)
+                                   num_features=num_channels,
+                                   num_filters=num_bins,
+                                   dilation=dilation,
+                                   filter_shape=filter_shape,
+                                   activation=tf.nn.relu,
+                                   name=last_name)
             last_layer = tf.math.abs(tf.identity(
                 last_conv + tf.transpose(last_conv, perm=[0, 2, 1, 3]),
                 name=C_MAP_PRED))
@@ -878,11 +1032,12 @@ def deep_conv_op(conv_input_tensor,
                 name_prefix, num_layers
             ) if name_prefix is not None else 'conv_h_%s' % num_layers
             conv = pairwise_conv_layer(input_data=previous_layer,
-                                       num_features=num_channels,
-                                       num_filters=num_bins,
-                                       filter_shape=filter_shape,
-                                       dilation=dilation,
-                                       name=last_name)
+                              num_features=num_channels,
+                              num_filters=num_bins,
+                              filter_shape=filter_shape,
+                              dilation=dilation,
+                              activation=tf.nn.relu,
+                              name=last_name)
             last_layer = tf.nn.softmax(conv +
                                        tf.transpose(conv, perm=[0, 2, 1, 3]),
                                        axis=-1,

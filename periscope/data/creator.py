@@ -740,6 +740,7 @@ class DataCreator:
         msa = {s.id: s for s in self._aln}
 
         bow_msa_refs = self._bow_msa(msa=msa).transpose(1, 2, 0)
+        bow_msa_refs = bow_msa_refs[..., 1:]
         return bow_msa_refs
 
     def _generate_seq_refs_full(self):
@@ -765,7 +766,7 @@ class DataCreator:
 
         """
 
-        file = os.path.join(self._msa_data_path, 'seq_refs_test.pkl')
+        file = os.path.join(self._msa_data_path, 'seq_refs_test_fix.pkl')
         if os.path.isfile(file):
             output = pkl_load(file)
             if output.shape[2] == self._n_refs:
@@ -775,7 +776,7 @@ class DataCreator:
 
         if bow_msa_full is None:
             return
-
+        bow_msa_full = bow_msa_full
         shape = bow_msa_full.shape
         total_refs = shape[-1]
 
@@ -1508,6 +1509,11 @@ class DataCreator:
         aln = read_fasta(fname, True)
 
         self._aln = aln
+
+    @property
+    def templates_aln(self):
+        self._get_clustalo_msa()
+        return self._aln
 
     def _replace_nas(self, array):
         return np.nan_to_num(array, nan=self.NAN_VALUE)

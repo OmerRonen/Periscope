@@ -16,6 +16,7 @@ GoogleAuth.DEFAULT_SETTINGS['client_config_file'] = os.path.join(
     PATHS.periscope, 'client_secrets.json')
 
 LOGGER = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 def _get_drive():
@@ -75,6 +76,8 @@ def _create_folder(drive, folder_name, parent_folder_id):
 
 
 def _recursive_upload(drive, folder_id, src_name, exclude=[]):
+    if src_name.split('/')[-1].startswith('tmp'):
+        return
     if os.path.isfile(src_name):
         LOGGER.info('Uploading %s' % src_name)
         f_name = src_name.split('/')[-1]
@@ -93,6 +96,7 @@ def _recursive_upload(drive, folder_id, src_name, exclude=[]):
         return
 
     for file1 in listdir(src_name):
+        LOGGER.info(f'Uploading {os.path.join(src_name, file1)}')
         if file1 in exclude:
             continue
 
