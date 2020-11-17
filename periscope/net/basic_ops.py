@@ -808,14 +808,16 @@ def periscope_op(dms, seq_refs, ccmpred, pwm_w, pwm_evo, conservation, beff, con
             dm = dms[..., i:i + 1]
             seq = seq_refs[..., i]
             max_dm = tf.reduce_max(dm) * tf.ones_like(dm)
-            t = tf.where(max_dm > 0, _template_op(dm=dm, seq=seq), dm)
-            w = tf.where(max_dm > 0, _weighting_op_template(seq_template=seq, seq_target=pwm_w), dm)
+            t = tf.where(max_dm > 0, _template_op(dm=dm, seq=seq, conv_layer=pairwise_conv_layer_2), dm)
+            w = tf.where(max_dm > 0, _weighting_op_template(seq_template=seq, seq_target=pwm_w,
+                                                            conv_layer=pairwise_conv_layer_2), dm)
 
             templates.append(t)
             weights.append(w)
 
-        templates += [_evo_op(pwm_evo, ccmpred)]#, _evo_op(pwm_evo, evfold)]
-        w_ccmpred = _weighting_op_evo(conservation, beff=beff, evo_arr=ccmpred, name='ccmpred')
+        templates += [_evo_op(pwm_evo, ccmpred, conv_layer=pairwise_conv_layer_2)]#, _evo_op(pwm_evo, evfold)]
+        w_ccmpred = _weighting_op_evo(conservation, beff=beff, evo_arr=ccmpred, name='ccmpred',
+                                      conv_layer=pairwise_conv_layer_2)
         # w_evfold = _weighting_op_evo(conservation, beff=beff, evo_arr=evfold, name='evfold')
         # w_ccmpred = _print_max_min(w_ccmpred, "w_ccmpred weights")
         #
