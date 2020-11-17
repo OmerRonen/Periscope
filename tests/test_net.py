@@ -22,7 +22,7 @@ class TestProteinNet(unittest.TestCase):
                                                num_bins=2,
                                                num_channels=10,
                                                deep_projection=False,
-                                               filter_shape=(30, 30),
+                                               filter_shape=(7, 7),
                                                dilation=1,
                                                num_layers=4,
                                                train_dataset=None,
@@ -39,7 +39,7 @@ class TestProteinNet(unittest.TestCase):
         params = NetParams.generate_net_params(
             name=model_name,
             conv_features=[FEATURES.reference_dm, FEATURES.ccmpred, FEATURES.evfold],
-            arch=ARCHS.conv,
+            arch=ARCHS.evo,
             save_summary_steps=1,
             save_checkpoints_steps=1,
             epochs=1,
@@ -61,6 +61,36 @@ class TestProteinNet(unittest.TestCase):
             # shutil.rmtree(tempdir.name, ignore_errors=True)
 
     def test_train_cnn_live_1(self):
+        tempdir = tempfile.TemporaryDirectory(dir=PATHS.models)
+        model_name = tempdir.name.split('/')[-1]
+
+        params = NetParams.generate_net_params(
+            name=model_name,
+            conv_features=[FEATURES.ccmpred, FEATURES.reference_dm, FEATURES.evfold],
+            arch=ARCHS.templates,
+            save_summary_steps=1,
+            save_checkpoints_steps=1,
+            epochs=1,
+            num_bins=2,
+            batch_size=1,
+            num_channels=10,
+            deep_projection=True,
+            filter_shape=(5, 5),
+            dilation=1,
+            num_layers=2,
+            k=10,
+            lr=0.001,
+            train_dataset='testing',
+            eval_dataset='testing',
+            test_dataset='testing',
+            templates_dropout=0.9)
+
+        if not LOCAL:
+            cnn_pred = ContactMapEstimator(params)
+            cnn_pred.train_and_evaluate()
+            # shutil.rmtree(tempdir.name, ignore_errors=True)
+
+    def test_train_cnn_live_2(self):
         tempdir = tempfile.TemporaryDirectory(dir=PATHS.models)
         model_name = tempdir.name.split('/')[-1]
 

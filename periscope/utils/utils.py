@@ -24,6 +24,12 @@ MODELLER_VERSION = 4
 VERSION = 3
 
 
+def get_data(model_name, target):
+    dataset = get_target_dataset(target)
+    prediction_path = os.path.join(PATHS.drive, model_name, 'predictions', dataset, target)
+    data = pkl_load(os.path.join(prediction_path, 'data.pkl'))
+    return data
+
 def timeit(method):
     def timed(*args, **kw):
         ts = time.time()

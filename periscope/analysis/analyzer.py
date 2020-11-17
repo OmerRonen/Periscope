@@ -15,8 +15,8 @@ from ..net.contact_map import ContactMapEstimator, get_model_by_name
 from ..utils.constants import DATASETS, PATHS
 from ..utils.drive import upload_folder
 from ..utils.protein import Protein
-from ..utils.utils import pkl_load, yaml_load, np_read_csv, get_dist_cat_mat, yaml_save, check_path, pkl_save, \
-    get_target_dataset
+from ..utils.utils import (pkl_load, yaml_load, np_read_csv, get_dist_cat_mat, yaml_save, check_path, pkl_save,
+    get_target_dataset, get_data)
 from sklearn.metrics import roc_curve
 
 LOGGER = logging.getLogger(__name__)
@@ -745,7 +745,8 @@ def plot_target_reference(target, prediction, model_path, predicted_logits, data
 
 
 def _save_plot_matrices(model: ContactMapEstimator, predictions):
-    for target in predictions.keys():
+    for target in predictions['logits']:
+        data = {}
         ds = get_target_dataset(target)
         if ds is None:
             LOGGER.warning(f'Problem with {target}, does not belong to any dataset')
@@ -756,11 +757,23 @@ def _save_plot_matrices(model: ContactMapEstimator, predictions):
         check_path(target_path)
         dc = DataCreator(target)
         refs_contacts = dc.refs_contacts
-        pd.DataFrame(refs_contacts).to_csv(os.path.join(target_path, 'refs_contacts.csv'))
-        prediction = np.squeeze(predictions[target])
-        pd.DataFrame(prediction).to_csv(os.path.join(target_path, 'prediction.csv'))
+        data['refs_contacts'] = refs_contacts
+        # pd.DataFrame(refs_contacts).to_csv(os.path.join(target_path, 'refs_contacts.csv'))
+        prediction = np.squeeze(predictions['logits'][target])
+        data['prediction'] = prediction
+        weights = np.squeeze(predictions['weights'][target])
+        data['weights'] = weights
+        # pd.DataFrame(prediction).to_csv(os.path.join(target_path, 'prediction.csv'))
         gt = dc.protein.cm
-        pd.DataFrame(gt).to_csv(os.path.join(target_path, 'gt.csv'))
+        data['gt'] = gt
+        # pd.DataFrame(gt).to_csv(os.path.join(target_path, 'gt.csv'))
+        data['alignment'] = dc.templates_aln
+        data['evfold'] = dc.evfold
+        data['ccmpred'] = dc.ccmpred
+        data['templates'] = dc.k_reference_dm_test
+        data['seqs'] = dc.seq_refs_ss_acc
+        data['beff'] = dc.beff
+        pkl_save(os.path.join(target_path,'data.pkl'), data)
         upload_folder(target_path, target_path.split('Periscope/')[-1])
 
 
@@ -771,9 +784,9 @@ def save_model_predictions(model: ContactMapEstimator, protein, outfile):
 
 
 def save_model_analysis(model: ContactMapEstimator, proteins=None):
-    predictions = get_model_predictions(model, proteins=proteins)['logits']
+    predictions = get_model_predictions(model, proteins=proteins)
     if proteins is None:
-        _get_top_category_accuracy_np(predictions, model.path, model.name, model.predict_data_manager.dataset)
+        _get_top_category_accuracy_np(predictions['logits'], model.path, model.name, model.predict_data_manager.dataset)
 
     _save_plot_matrices(model, predictions)
 
@@ -972,8 +985,10 @@ def ds_accuracy(model, dataset):
     for target in os.listdir(ds_path):
         if target not in getattr(DATASETS, dataset):
             continue
-        logits = np_read_csv(os.path.join(ds_path, target, 'prediction.csv'))
-        gt = np_read_csv(os.path.join(ds_path, target, 'gt.csv'))
+        data = get_data(model.name, target)
+
+        logits = data['prediction']
+        gt = data['gt']
         prediction_data[target] = (logits, gt)
     LOGGER.info(f'Number of predictions for {model.name} dataset {dataset} is {len(prediction_data)}')
     n_pred = [1, 2, 5, 10]

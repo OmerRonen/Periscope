@@ -14,7 +14,7 @@ from ..utils.constants import (ARCHS, PROTEIN_BOW_DIM, PROTEIN_BOW_DIM_PSSM_SS,
                                DATASETS, FEATURES, PATHS)
 from ..net.basic_ops import (get_top_category_accuracy, deep_conv_op, multi_structures_op,
                              multi_structures_op_simple, get_opt_op, upper_triangular_mse_loss,
-                             upper_triangular_cross_entropy_loss, periscope_op)
+                             upper_triangular_cross_entropy_loss, periscope_op, evo_op, template_op)
 from ..utils.utils import yaml_save
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
@@ -95,18 +95,6 @@ class ProteinNet:
     def get_inputs(self):
         raise NotImplementedError
 
-    # def define_prediction_methods_similarity(self, predictions, inputs_dict,
-    #                                          sequence_length, mode):
-    #     prediction_methods_similarity = {}
-    #     for pred_mat in PREDICTON_FEATURES.intersection(set(self._features)):
-    #         const = -1 if 'dm' in pred_mat.split('_') else 1
-    #         similarity = compare_predictions(predictions,
-    #                                          const * inputs_dict[pred_mat],
-    #                                          sequence_length, mode)
-    #         prediction_methods_similarity['methods_similarity/%s' %
-    #                                       pred_mat] = similarity
-    #     return prediction_methods_similarity
-
 
 class PeriscopeNet(ProteinNet):
     @property
@@ -123,11 +111,52 @@ class PeriscopeNet(ProteinNet):
         periscope_input = {
             'dms': features[FEATURES.k_reference_dm_conv],
             'seq_refs': features[FEATURES.seq_refs],
-            'seq_target': features[FEATURES.seq_target],
-            'evfold': features[FEATURES.evfold],
+            # 'evfold': features[FEATURES.evfold],
             'ccmpred': features[FEATURES.ccmpred],
             FEATURES.pwm_evo: features[FEATURES.pwm_evo],
             FEATURES.pwm_w: features[FEATURES.pwm_w],
+            FEATURES.conservation: features[FEATURES.conservation],
+            FEATURES.beff: features[FEATURES.beff]
+        }
+        return periscope_input
+
+
+class TempaltesNet(ProteinNet):
+    @property
+    def predicted_contact_map(self):
+        return partial(template_op,
+                       conv_params=self._conv_arch_params)
+
+    # @property
+    # def weights(self):
+    #     return partial(get_weights,
+    #                    conv_params=self._conv_arch_params)
+
+    def get_inputs(self, features):
+        periscope_input = {
+            'dms': features[FEATURES.k_reference_dm_conv],
+            'seq_refs': features[FEATURES.seq_refs],
+            FEATURES.pwm_w: features[FEATURES.pwm_w],
+        }
+        return periscope_input
+
+
+class EvoNet(ProteinNet):
+    @property
+    def predicted_contact_map(self):
+        return partial(evo_op,
+                       conv_params=self._conv_arch_params)
+
+    # @property
+    # def weights(self):
+    #     return partial(get_weights,
+    #                    conv_params=self._conv_arch_params)
+
+    def get_inputs(self, features):
+        periscope_input = {
+            'evfold': features[FEATURES.evfold],
+            'ccmpred': features[FEATURES.ccmpred],
+            FEATURES.pwm_evo: features[FEATURES.pwm_evo],
             FEATURES.conservation: features[FEATURES.conservation],
             FEATURES.beff: features[FEATURES.beff]
         }
@@ -233,7 +262,9 @@ _nets = {ARCHS.conv: ConvProteinNet,
          ARCHS.ms_ss_ccmpred: MsSsCCmpredProteinNet,
          ARCHS.ms_ss_ccmpred_pssm: MsSsCCmpredPssmProteinNet,
          ARCHS.periscope: PeriscopeNet,
-         ARCHS.periscope2: PeriscopeNet}
+         ARCHS.periscope2: PeriscopeNet,
+         ARCHS.templates: TempaltesNet,
+         ARCHS.evo:EvoNet}
 
 
 def get_model_by_name(model_name, test_dataset=None):

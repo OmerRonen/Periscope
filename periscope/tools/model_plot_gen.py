@@ -55,8 +55,8 @@ if __name__ == "__main__":
 
         if not os.path.exists(os.path.join(model_drive_path, protein)):
             continue
-        if len(os.listdir(os.path.join(model_drive_path, protein)))<3:
-            continue
+        # if len(os.listdir(os.path.join(model_drive_path, protein)))<3:
+        #     continue
         make_art(model_name, protein)
         # if not ds_given:
         #     dataset = get_target_dataset(protein)
