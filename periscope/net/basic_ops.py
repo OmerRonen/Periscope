@@ -831,7 +831,9 @@ def periscope_op(dms, seq_refs, ccmpred, pwm_w, pwm_evo, conservation, beff, con
 
         # weights = _print_max_min(weights, "softmax weights")
         K = dms.get_shape().as_list()[3]
-        factor_templates = tf.ones_like(weights[..., :K]) - tf.log(float(K))
+        max_dm = tf.reduce_max(tf.reduce_max(dms, axis=1), axis=1)
+        N_templates = tf.reduce_sum(tf.where(max_dm > 0, tf.ones_like(max_dm), tf.zeros_like(max_dm)))
+        factor_templates = tf.ones_like(weights[..., :K]) - tf.log(N_templates)
         factor_evo = tf.ones_like(weights[..., K:]) - tf.log(float(1)) # TODO: fix K
         factor = tf.concat([factor_templates, factor_evo], axis=3)
         factor = _print_max_min(factor, 'factor')
