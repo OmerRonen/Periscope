@@ -848,8 +848,9 @@ def periscope_op(dms, seq_refs, ccmpred, pwm_w, pwm_evo, conservation, beff, con
 
         conv_inp = tf.reduce_sum(weighted_tempaltes, axis=3, keepdims=True)
         # conv_inp = _print_max_min(conv_inp, "conv_inp")
-
-        return deep_conv_op(conv_inp, **conv_params, name_prefix='final', residual=True), weights
+        cmap_hat = deep_conv_op(conv_inp, **conv_params, name_prefix='final',
+                                residual=True, conv_layer=pairwise_conv_layer_2)
+        return cmap_hat, weights
 
 
 def _projection_op(x, k, n, name):
