@@ -570,10 +570,11 @@ def _evo_op(pwn, evo_arr, conv_layer=pairwise_conv_layer):
         tf.Tensor: contact map embedding of shape (1, l, l, 1)
 
     """
+    shp = pwn.get_shape().as_list()[-1]
     with tf.variable_scope('evo_op', reuse=tf.AUTO_REUSE):
         aa_proj_ref = tf.get_variable(
             "pwn_projection",
-            shape=(21, PROJECTION_DIM),
+            shape=(shp, PROJECTION_DIM),
             initializer=tf.contrib.layers.xavier_initializer())
         aa_proj_ref = _print_max_min(aa_proj_ref, 'aa_proj_ref')
         s = tf.matmul(pwn, aa_proj_ref)  # (1, l, PROJECTION_DIM)

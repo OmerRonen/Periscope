@@ -653,6 +653,12 @@ class DataCreator:
         return self.scores['PWM'][1]
 
     @property
+    def pwm_evo_ss(self):
+        pwn_evo = self.scores['PWM'][1]
+        acc_ss = np.mean(self._get_reference_ss_acc(), axis=2)
+        return np.concatenate([pwn_evo, acc_ss], axis=-1)
+
+    @property
     def conservation(self):
         return np.expand_dims(np.array(self.scores['conservation']), axis=1)
 
@@ -1627,7 +1633,7 @@ class DataCreator:
         n_strucs = aligned_acc_ss.shape[-1]
 
         if n_strucs < self._n_refs:
-            shape = (aligned_acc_ss.shape[0],9,  self._n_refs - n_strucs)
+            shape = (aligned_acc_ss.shape[0], 9, self._n_refs - n_strucs)
             zero_array = np.zeros(shape)
 
             aligned_acc_ss = np.concatenate([zero_array, aligned_acc_ss], axis=2)

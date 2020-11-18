@@ -615,7 +615,7 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
             FEATURES.k_reference_dm_conv: (None, None, self._n_refs),
             FEATURES.ccmpred: (None, None, 1),
             FEATURES.pwm_w: (None, 21),
-            FEATURES.pwm_evo: (None, 21),
+            FEATURES.pwm_evo: (None, 30),
             FEATURES.conservation: (None, 1),
             FEATURES.beff: (1,)
 
@@ -642,7 +642,7 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
         data[FEATURES.k_reference_dm_conv] = np.random.random(
             (l, l, self._n_refs))
         data[FEATURES.pwm_w] = np.random.random((l, 21))
-        data[FEATURES.pwm_evo] = np.random.random((l, 21))
+        data[FEATURES.pwm_evo] = np.random.random((l, 30))
         data[FEATURES.conservation] = np.expand_dims(np.array(np.random.random((l)), dtype=np.float32), axis=1)
         data[FEATURES.beff] = np.array(np.random.random(1), dtype=np.float32)
 
@@ -691,7 +691,7 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
 
             data[FEATURES.seq_refs] = data_creator.seq_refs_ss_acc
             data[FEATURES.pwm_w] = data_seeker.pwm_w
-            data[FEATURES.pwm_evo] = data_seeker.pwm_evo
+            data[FEATURES.pwm_evo] = data_creator.pwm_evo_ss
             data[FEATURES.conservation] = data_seeker.conservation
             data[FEATURES.beff] = data_seeker.beff
 
