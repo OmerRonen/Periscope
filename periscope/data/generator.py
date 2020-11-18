@@ -789,7 +789,7 @@ class TemplatesGenerator(DataGenerator):
         target_sequence_length = len(data_seeker.protein.sequence)
         data['sequence_length'] = np.array([target_sequence_length])
 
-        if target_sequence_length >= 650:
+        if target_sequence_length >= 650 and self._mode != tf.estimator.ModeKeys.PREDICT:
             return
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:

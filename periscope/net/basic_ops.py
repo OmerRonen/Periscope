@@ -840,7 +840,7 @@ def periscope_op(dms, seq_refs, ccmpred, pwm_w, pwm_evo, conservation, beff, con
         factor = tf.concat([factor_templates, factor_evo], axis=3)
         factor = _print_max_min(factor, 'factor')
         weights = tf.nn.softmax(
-            weights + factor,
+            weights - factor,
             axis=3)
 
         weighted_tempaltes = templates * weights
