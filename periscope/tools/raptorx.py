@@ -78,6 +78,12 @@ def _run_raptorx(target):
     subprocess.call(cmd, shell=True)
 
 
+def _has_raptor_pred(target):
+    result_dir = os.path.join(DATA_PATH, 'raptorx')
+    pred_file = os.path.join(result_dir, '%s.predictedDistMatrix.pkl' % target)
+    return os.path.isfile(pred_file)
+
+
 def main():
     args = parse_args()
     dataset = args.dataset
@@ -87,6 +93,8 @@ def main():
     else:
         targets = getattr(datasets, dataset)
     for t in targets:
+        if _has_raptor_pred(t):
+            continue
         _run_raptorx(t)
 
 

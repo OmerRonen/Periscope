@@ -2,7 +2,7 @@ Bio
 pydrive
 matplotlib
 ipython
-biopython
+biopython==1.78
 evcouplings
 pandas
 numpy
