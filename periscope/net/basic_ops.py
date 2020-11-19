@@ -714,7 +714,7 @@ def evo_op(evfold, ccmpred, pwm_evo, conservation, beff, conv_params):
     with tf.variable_scope('template', reuse=tf.AUTO_REUSE):
         weights = []
 
-        evo = [_evo_op(pwm_evo, ccmpred, pairwise_conv_layer_2), _evo_op(pwm_evo, evfold,pairwise_conv_layer_2)]
+        evo = [_evo_op(pwm_evo, ccmpred, pairwise_conv_layer_2), _evo_op(pwm_evo, evfold, pairwise_conv_layer_2)]
         w_ccmpred = _weighting_op_evo(conservation, beff=beff, evo_arr=ccmpred, name='ccmpred',
                                       conv_layer=pairwise_conv_layer_2)
         w_evfold = _weighting_op_evo(conservation, beff=beff, evo_arr=evfold, name='evfold',
@@ -816,7 +816,7 @@ def periscope_op(dms, seq_refs, ccmpred, pwm_w, pwm_evo, conservation, beff, con
             templates.append(t)
             weights.append(w)
 
-        templates += [_evo_op(pwm_evo, ccmpred, conv_layer=pairwise_conv_layer_2)]#, _evo_op(pwm_evo, evfold)]
+        templates += [_evo_op(pwm_evo, ccmpred, conv_layer=pairwise_conv_layer_2)]  # , _evo_op(pwm_evo, evfold)]
         w_ccmpred = _weighting_op_evo(conservation, beff=beff, evo_arr=ccmpred, name='ccmpred',
                                       conv_layer=pairwise_conv_layer_2)
         # w_evfold = _weighting_op_evo(conservation, beff=beff, evo_arr=evfold, name='evfold')
@@ -836,7 +836,7 @@ def periscope_op(dms, seq_refs, ccmpred, pwm_w, pwm_evo, conservation, beff, con
         K = dms.get_shape().as_list()[3]
         max_dm = tf.reduce_max(tf.reduce_max(dms, axis=1), axis=1)
         N_templates = tf.reduce_sum(tf.where(max_dm > 0, tf.ones_like(max_dm), tf.zeros_like(max_dm)))
-        factor_templates = tf.ones_like(weights[..., :K]) * tf.log(tf.reduce_max(N_templates,1))
+        factor_templates = tf.ones_like(weights[..., :K]) * tf.log(tf.reduce_max([N_templates, float(1)]))
         factor_evo = tf.ones_like(weights[..., K:]) * tf.log(float(1))
         factor = tf.concat([factor_templates, factor_evo], axis=3)
         factor = _print_max_min(factor, 'factor')
@@ -1024,12 +1024,12 @@ def deep_conv_op(conv_input_tensor,
         if num_bins == 1:
             last_name = '%s_last_conv' % name_prefix if name_prefix is not None else 'last_conv'
             last_conv = pairwise_conv_layer(input_data=previous_layer,
-                                   num_features=num_channels,
-                                   num_filters=num_bins,
-                                   dilation=dilation,
-                                   filter_shape=filter_shape,
-                                   activation=tf.nn.relu,
-                                   name=last_name)
+                                            num_features=num_channels,
+                                            num_filters=num_bins,
+                                            dilation=dilation,
+                                            filter_shape=filter_shape,
+                                            activation=tf.nn.relu,
+                                            name=last_name)
             last_layer = tf.math.abs(tf.identity(
                 last_conv + tf.transpose(last_conv, perm=[0, 2, 1, 3]),
                 name=C_MAP_PRED))
@@ -1038,12 +1038,12 @@ def deep_conv_op(conv_input_tensor,
                 name_prefix, num_layers
             ) if name_prefix is not None else 'conv_h_%s' % num_layers
             conv = pairwise_conv_layer(input_data=previous_layer,
-                              num_features=num_channels,
-                              num_filters=num_bins,
-                              filter_shape=filter_shape,
-                              dilation=dilation,
-                              activation=tf.nn.relu,
-                              name=last_name)
+                                       num_features=num_channels,
+                                       num_filters=num_bins,
+                                       filter_shape=filter_shape,
+                                       dilation=dilation,
+                                       activation=tf.nn.relu,
+                                       name=last_name)
             last_layer = tf.nn.softmax(conv +
                                        tf.transpose(conv, perm=[0, 2, 1, 3]),
                                        axis=-1,
