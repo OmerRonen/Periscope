@@ -94,6 +94,7 @@ def main():
         targets = getattr(datasets, dataset)
     for t in targets:
         if _has_raptor_pred(t):
+            print(t)
             continue
         _run_raptorx(t)
 
