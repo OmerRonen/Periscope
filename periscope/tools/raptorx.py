@@ -92,6 +92,7 @@ def main():
         targets = args.proteins
     else:
         targets = getattr(datasets, dataset)
+    print(len(targets))
     for t in targets:
         if _has_raptor_pred(t):
             print(t)
