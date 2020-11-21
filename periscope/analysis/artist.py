@@ -3,6 +3,7 @@ from collections import OrderedDict
 
 import numpy as np
 import pandas as pd
+import matplotlib
 import matplotlib.pylab as plt
 import matplotlib.patches as mpatches
 
@@ -11,7 +12,7 @@ from sklearn.metrics import roc_curve
 
 from ..utils.constants import PATHS, DATASETS
 from ..utils.protein import Protein
-from ..utils.utils import get_target_dataset, check_path, pkl_load, get_data
+from ..utils.utils import get_target_dataset, check_path, pkl_load, get_data, get_raptor_logits
 
 
 def _read_csv_np(filename):
@@ -211,13 +212,120 @@ def dataset_analysis(model_name, dataset):
             pass
 
 
-def plot_weights(model_name, target, order=1):
+def _get_default_colors(cmap='Set1'):
+    if cmap == 'Set1':
+        cm_ = plt.cm.Set1
+    elif cmap == 'Set2':
+        cm_ = plt.cm.Set2
+    default_colors = np.array(pd.DataFrame(np.array([cm_(x / (20 - 1)) for x in range(20)])[:, :-1]).drop_duplicates())
+    return default_colors
+
+
+def _get_color(weights, slope=4,
+               offset=-0.3, cmap='Set1'
+               ):
+    import matplotlib
+    default_colors = _get_default_colors(cmap=cmap)
+    ncolors = len(default_colors)
+    default_colors_hsv = matplotlib.colors.rgb_to_hsv(default_colors)
+    index = np.argmax(weights, axis=-1) % ncolors
+    value_multiplier = np.maximum(np.minimum(slope * (weights.max(-1) + offset), 1), 0)
+    colors = default_colors_hsv[index, :]
+    colors[:, -1] *= value_multiplier
+    colors = matplotlib.colors.hsv_to_rgb(colors)
+    return colors
+
+
+def plot_weights(model_name, target,
+                 value_slope=5, value_offset=-0.1, proba_contact_cutoff=0.5, background_alpha=0.1,
+                 cmap='Set1'):
+    data = get_data(model_name, target)
+    weights = data['weights']
+    predictions = data['prediction']
+    L = weights.shape[0]
+    aln = data['alignment']
+    template_names = {(10 - i): aln[i].id for i in range(1, len(aln))}
+    template_names[10] = 'ccmpred'
+    relevant_templates = np.unique(np.argmax(weights, axis=-1))
+    has_above_threshold = (weights[:, :, relevant_templates].max(0).max(0) > - value_offset)
+    relevant_templates = relevant_templates[has_above_threshold]
+
+    ntemplates = len(relevant_templates)
+    template_names = [template_names[i] for i in relevant_templates]
+    weights = weights[:, :, relevant_templates]
+
+    if ntemplates > 0:
+        color = _get_color(weights.reshape([L ** 2, -1]), slope=value_slope, offset=value_offset, cmap=cmap).reshape(
+            [L, L, 3])
+    else:
+        color = np.zeros([L, L, 3])
+    position = np.array(np.meshgrid(np.arange(L), np.arange(L)))
+    contacts = (predictions > proba_contact_cutoff)
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+
+    marker_size = np.sqrt(fig.get_size_inches()[0] * fig.dpi / L)
+
+    ax.set_facecolor((0., 0., 0., 0.1))
+    plt.scatter(position[0][contacts], L - position[1][contacts], c=color[contacts], marker='s',
+                s=marker_size
+
+                )
+
+    if ntemplates > 0:
+        default_colors = _get_default_colors(cmap=cmap)
+        ncolors = len(default_colors)
+        for i in range(ntemplates):
+            plt.scatter([-1], [-1], c=default_colors[i % ncolors], marker='s', s=marker_size, label=template_names[i])
+        ax.legend(fontsize=12, markerscale=5, frameon=True, loc='upper left');
+    ax.set_ylim(ax.get_ylim()[::-1])  # invert the axis
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+    dataset = get_target_dataset(target)
+    # prediction_path = os.path.join(PATHS.drive, model_name, 'predictions', dataset, target)
+    fig_path = os.path.join(PATHS.drive, model_name, 'artifacts', dataset, target)
+    fig_name = os.path.join(fig_path, f'weights.png')
+    plt.savefig(fig_name)
+
+
+def plot_weights_2(model_name, target, value_slope=5, value_offset=-0.2, proba_contact_cutoff=0.5,
+                   background_alpha=0.1):
+    data = get_data(model_name, target)
+    weights = data['weights']
+    predictions = data['prediction']
+    L = weights.shape[0]
+    color = _get_color(weights.reshape([L ** 2, -1]), slope=value_slope, offset=value_offset).reshape([L, L, 3])
+    position = np.array(np.meshgrid(np.arange(L), np.arange(L)))
+    contacts = (predictions > proba_contact_cutoff)
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+
+    marker_size = np.sqrt(fig.get_size_inches()[0] * fig.dpi / L)
+    print(marker_size)
+    ax.set_facecolor((0., 0., 0., 0.1))
+    plt.scatter(position[0][contacts], L - position[1][contacts], c=color[contacts], marker='s',
+                s=marker_size
+
+                )
+    ax.set_ylim(ax.get_ylim()[::-1])  # invert the axis
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+    dataset = get_target_dataset(target)
+    # prediction_path = os.path.join(PATHS.drive, model_name, 'predictions', dataset, target)
+    fig_path = os.path.join(PATHS.drive, model_name, 'artifacts', dataset, target)
+    fig_name = os.path.join(fig_path, f'weights.png')
+    plt.savefig(fig_name)
+
+
+def plot_weights_old(model_name, target, order=1):
     data = get_data(model_name, target)
     weights = data['weights']
     sort_w = np.argsort(weights, axis=-1)
     max_w = sort_w[..., -1 * order]
     sort_w_value = np.sort(weights, axis=-1)
-    w_alpha = sort_w_value[..., -1*order]
+    w_alpha = sort_w_value[..., -1 * order]
     fig_size = (21, 14)
     plt.figure(figsize=fig_size, clear=True)
 
@@ -243,9 +351,9 @@ def plot_weights(model_name, target, order=1):
     # put those patched as legend-handles into the legend
     ax1.legend(handles=patches, loc='upper right', bbox_to_anchor=(1.5, 0.8),
                ncol=1, fancybox=True, shadow=True, prop={'size': 18})
-    if order==1:
+    if order == 1:
         plt.title('Largest Weight')
-    if order==2:
+    if order == 2:
         plt.title('Second Largest Weight')
     ax1.set_xticks([], [])
     ax1.set_yticks([], [])
@@ -288,16 +396,6 @@ def evaluate_pred_vs_modeller(model_name, target):
     evaluation_plot(pred1=pred_model, pred2=modeller, gt=gt, fig_name=fig_name, pred2_name='Modeller', labels=labels)
 
 
-def _get_raptor_logits(target):
-    drive = '/Users/omerronen/Google Drive (omerronen10@gmail.com)/Periscope'
-    raptor_path = os.path.join(drive, 'raptorx')
-    target_file = os.path.join(raptor_path, f'{target}.predictedDistMatrix.pkl')
-    if not os.path.isfile(target_file):
-        return
-    raptor_data = pkl_load(target_file)
-    return raptor_data[3]['CbCb']
-
-
 def evaluate_pred_vs_raptor(model_name, target):
     data = get_data(model_name, target)
     dataset = get_target_dataset(target)
@@ -307,7 +405,7 @@ def evaluate_pred_vs_raptor(model_name, target):
     gt = data['gt']
     l = gt.shape[0]
     pred_model, _ = _get_cm(data['prediction'], l)
-    raptor_logits = _get_raptor_logits(target)
+    raptor_logits = get_raptor_logits(target)
     if raptor_logits is None:
         return
     pred_raptor, _ = _get_cm(raptor_logits, l)
@@ -344,12 +442,16 @@ def evaluate_pred_roc(model_name, target):
     mask = _get_mask(l)
     pred_logits = data['prediction'] * mask
     refs = data['refs_contacts'] * mask
-    modeller = _read_csv_np(os.path.join(PATHS.data, dataset, 'modeller', f'{target}.csv')) * mask
+    raptor_logits = get_raptor_logits(target)* mask
+    try:
+        modeller = _read_csv_np(os.path.join(PATHS.data, dataset, 'modeller', f'{target}.csv')) * mask
+    except ValueError:
+        modeller = np.zeros_like(raptor_logits)
     gt *= mask
-    _plot_roc(pred_logits, gt, modeller, refs, fig_name=fig_name)
+    _plot_roc(pred_logits, gt, modeller, refs, fig_name=fig_name, pred2_logits=raptor_logits, method2_name='RaptorX')
 
 
-def _plot_roc(pred_logits, gt, modeller, refs, pred2_logits=None, fig_name=None):
+def _plot_roc(pred_logits, gt, modeller, refs, pred2_logits=None, fig_name=None, method2_name=None):
     fig_size = (12, 8)
     plt.figure(figsize=fig_size, clear=True)
 
@@ -384,6 +486,17 @@ def _plot_roc(pred_logits, gt, modeller, refs, pred2_logits=None, fig_name=None)
              markersize=3,
              color="darkred")
     ax4.annotate("Periscope", (fpr_method, tpr_method), color='darkred')
+    if pred2_logits is not None:
+        fpr_2, tpr_2 = _get_roc_data(pred2_logits, gt)
+        predicted_cm2, _ = _get_cm(pred2_logits, l)
+        fpr_method2, tpr_method2 = _get_fpr_tpr_(predicted_cm2, gt)
+        ax4.plot(fpr_2, tpr_2, color='orange')
+        ax4.plot(fpr_method2,
+                 tpr_method2,
+                 marker='o',
+                 markersize=3,
+                 color="orange")
+        ax4.annotate(method2_name, (fpr_method2, tpr_method2), color='orange')
     ax4.title.set_text('ROC Curve')
     ax4.set_xticks([], [])
     ax4.set_yticks([], [])
@@ -406,13 +519,18 @@ def _plot_roc(pred_logits, gt, modeller, refs, pred2_logits=None, fig_name=None)
 
 
 def make_art(model_name, target):
+    data = get_data(model_name, target)
+    if data is None:
+        return
     evaluate_pred_vs_ref(model_name, target)
     evaluate_pred_roc(model_name, target)
     evaluate_pred_vs_modeller(model_name, target)
     evaluate_pred_vs_raptor(model_name, target)
     evaluate_pred_vs_evo(model_name, target)
     plot_weights(model_name, target)
-    try:
-        plot_weights(model_name, target, 2)
-    except Exception:
-        pass
+    # plot_weights_old(model_name, target)
+    #
+    # try:
+    #     plot_weights_old(model_name, target, 2)
+    # except Exception:
+    #     pass

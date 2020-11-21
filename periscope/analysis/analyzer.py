@@ -16,7 +16,7 @@ from ..utils.constants import DATASETS, PATHS
 from ..utils.drive import upload_folder
 from ..utils.protein import Protein
 from ..utils.utils import (pkl_load, yaml_load, np_read_csv, get_dist_cat_mat, yaml_save, check_path, pkl_save,
-    get_target_dataset, get_data)
+                           get_target_dataset, get_data, get_raptor_logits)
 from sklearn.metrics import roc_curve
 
 LOGGER = logging.getLogger(__name__)
@@ -986,10 +986,12 @@ def ds_accuracy(model, dataset):
         if target not in getattr(DATASETS, dataset):
             continue
         data = get_data(model.name, target)
-
+        raptor_logits = get_raptor_logits(target)
+        if raptor_logits is None:
+            continue
         logits = data['prediction']
         gt = data['gt']
-        prediction_data[target] = (logits, gt)
+        prediction_data[target] = (logits, gt, raptor_logits)
     LOGGER.info(f'Number of predictions for {model.name} dataset {dataset} is {len(prediction_data)}')
     n_pred = [1, 2, 5, 10]
 
@@ -1001,13 +1003,22 @@ def ds_accuracy(model, dataset):
         'L': {n: {}
               for n in n_pred}
     }
-
+    categories_raptor = {
+        'S': {n: {}
+              for n in n_pred},
+        'M': {n: {}
+              for n in n_pred},
+        'L': {n: {}
+              for n in n_pred}
+    }
     cat_values_map = {'S': 1, 'M': 2, "L": 3}
 
     for category in categories:
         for target in prediction_data.keys():
             logits = np.squeeze(prediction_data[target][0])
             gt = np.squeeze(prediction_data[target][1])
+            logits_raptor = np.squeeze(prediction_data[target][2])
+
             if gt.shape != logits.shape:
                 continue
             l = logits.shape[0]
@@ -1017,23 +1028,30 @@ def ds_accuracy(model, dataset):
 
             logits_cat = logits[inds]
             gt_cat = gt[inds]
+            logits_raptor_cat = logits_raptor[inds]
             sorted_gt = pd.DataFrame({'gt': gt_cat, 'pred': logits_cat}).sort_values('pred', ascending=False).loc[:,
                         'gt'].values
-
+            sorted_gt_raptor = pd.DataFrame({'gt': gt_cat, 'pred': logits_raptor_cat}).sort_values('pred', ascending=False).loc[:,
+                        'gt'].values
             for top_np in categories[category]:
                 n_preds = int(np.ceil(l / top_np))
                 categories[category][top_np][target] = float(sorted_gt[0:n_preds].mean())
+                categories_raptor[category][top_np][target] = float(sorted_gt_raptor[0:n_preds].mean())
 
     keys_multiindex = [['Short', 'Medium', 'Long'],
                        ['Top L', 'Top L/2', 'Top L/5', 'Top L/10']]
     multi_index = pd.MultiIndex.from_product(keys_multiindex)
     data = []
+    data_raptor = []
     for k1 in categories:
         for k2 in categories[k1]:
             data.append(np.round(np.mean(list(categories[k1][k2].values())),
                                  2))
+            data_raptor.append(np.round(np.mean(list(categories_raptor[k1][k2].values())),
+                                 2))
 
     model_acc = pd.Series(data, index=multi_index).round(2)
+    raptor_acc = pd.Series(data_raptor, index=multi_index).round(2)
 
     raptor_file = os.path.join(PATHS.data,
                                f'raptor_{dataset}.csv')
@@ -1046,6 +1064,8 @@ def ds_accuracy(model, dataset):
     accuracy = all_models.merge(model_acc.rename(model.name),
                                 left_index=True,
                                 right_index=True)
+
+    accuracy['RaptorX_new'] = raptor_acc
 
     return accuracy
 

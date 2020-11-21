@@ -654,7 +654,7 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
         drop = np.random.binomial(1, self._templates_dropout)
 
         file = os.path.join(self._tmp_dir.name, f'{protein}.pkl')
-        if os.path.isfile(file) and self._mode != tf.estimator.ModeKeys.PREDICT:
+        if os.path.isfile(file) and self._mode == tf.estimator.ModeKeys.TRAIN:
             LOGGER.info(f"loading {file}")
             data = pkl_load(file)
             if drop == 1:
@@ -685,7 +685,7 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
             return
         try:
             data[FEATURES.k_reference_dm_conv] = data_creator.k_reference_dm_test
-            if drop == 1:
+            if drop == 1 and self._mode == tf.estimator.ModeKeys.TRAIN:
                 LOGGER.info('Templates dropped')
                 data[FEATURES.k_reference_dm_conv] = np.zeros_like(data_creator.k_reference_dm_test)
 

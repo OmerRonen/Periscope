@@ -79,7 +79,6 @@ def _recursive_upload(drive, folder_id, src_name, exclude=[]):
     if src_name.split('/')[-1].startswith('tmp'):
         return
     if os.path.isfile(src_name):
-        LOGGER.info('Uploading %s' % src_name)
         f_name = src_name.split('/')[-1]
 
         f = drive.CreateFile({
@@ -96,6 +95,8 @@ def _recursive_upload(drive, folder_id, src_name, exclude=[]):
         return
 
     for file1 in listdir(src_name):
+        if not os.path.isfile(os.path.join(src_name, file1)):
+            continue
         LOGGER.info(f'Uploading {os.path.join(src_name, file1)}')
         if file1 in exclude:
             continue
@@ -112,7 +113,7 @@ def _recursive_upload(drive, folder_id, src_name, exclude=[]):
         _recursive_upload(drive, sub_folder_id, full_path, exclude=exclude)
 
 
-def upload_folder(src_name, dst_name):
+def upload_folder(src_name, dst_name, exclude=[]):
     drive = _get_drive()
     directory_id = _get_folder_id(drive, 'root', 'Periscope')
     for f in dst_name.split('/'):
@@ -121,7 +122,7 @@ def upload_folder(src_name, dst_name):
             current_directory_id = _create_folder(drive, f, directory_id)
         directory_id = current_directory_id
 
-    _recursive_upload(drive, directory_id, src_name)
+    _recursive_upload(drive, directory_id, src_name, exclude)
 
 
 
