@@ -24,6 +24,15 @@ MODELLER_VERSION = 4
 VERSION = 3
 
 
+def get_raptor_logits(target):
+    drive = '/Users/omerronen/Google Drive (omerronen10@gmail.com)/Periscope'
+    raptor_path = os.path.join(drive, 'raptorx')
+    target_file = os.path.join(raptor_path, f'{target}.predictedDistMatrix.pkl')
+    if not os.path.isfile(target_file):
+        return
+    raptor_data = pkl_load(target_file)
+    return raptor_data[3]['CbCb']
+
 def get_data(model_name, target):
     dataset = get_target_dataset(target)
     prediction_path = os.path.join(PATHS.drive, model_name, 'predictions', dataset, target)
