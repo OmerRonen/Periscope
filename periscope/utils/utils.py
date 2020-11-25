@@ -24,6 +24,32 @@ MODELLER_VERSION = 4
 VERSION = 3
 
 
+def bin_array(distance_matrix, n_bins, threshold=8, upper_lim=24):
+    if n_bins == 1:
+        return distance_matrix
+
+    if n_bins == 2:
+        return np.array(distance_matrix <= threshold, dtype=np.float32)
+
+    half_bins = int(n_bins / 2)
+
+    contact_bins_step = threshold / half_bins
+    contact_bins = [contact_bins_step * i for i in range(half_bins + 1)]
+
+    bin_step = (upper_lim - threshold) / half_bins
+    no_contact_bins = [threshold + (bin_step * i) for i in range(1, half_bins)]
+    all_bins = contact_bins + no_contact_bins
+    bins = [-1.1] + all_bins
+    bins_shifted = [0] + all_bins[1: ] + [np.infty]
+
+    binned_distance_matrix = np.array(np.logical_and(
+        distance_matrix[..., None] >= np.array(bins),
+        distance_matrix[..., None] < np.array(bins_shifted)),
+        dtype=np.float32)
+
+    return binned_distance_matrix[..., 1:]
+
+
 def get_raptor_logits(target):
     drive = '/Users/omerronen/Google Drive (omerronen10@gmail.com)/Periscope'
     raptor_path = os.path.join(drive, 'raptorx')
@@ -33,11 +59,13 @@ def get_raptor_logits(target):
     raptor_data = pkl_load(target_file)
     return raptor_data[3]['CbCb']
 
+
 def get_data(model_name, target):
     dataset = get_target_dataset(target)
     prediction_path = os.path.join(PATHS.drive, model_name, 'predictions', dataset, target)
     data = pkl_load(os.path.join(prediction_path, 'data.pkl'))
     return data
+
 
 def timeit(method):
     def timed(*args, **kw):
