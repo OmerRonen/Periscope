@@ -10,7 +10,7 @@ from .creator import DataCreator
 from .seeker import DataSeeker
 from ..utils.constants import (FEATURES, PROTEIN_BOW_DIM_PSSM_SS, PROTEIN_BOW_DIM_SS, PROTEIN_BOW_DIM,
                                FEATURES_DIMS, ARCHS)
-from ..utils.utils import pkl_save, pkl_load
+from ..utils.utils import pkl_save, pkl_load, bin_array
 
 logging.basicConfig(level=logging.INFO)
 
@@ -114,44 +114,6 @@ class DataGenerator:
 
                 batched_delivered += 1
 
-    def _bin_array(self, target, l):
-        """Returns the correct label given the number of bins
-
-        Args:
-            target (str): name of the protein
-            l (int): sequence length
-
-        Returns:
-            np.array: binned label of shape (l, l, num_bins)
-
-        """
-        data_seeker = DataSeeker(target)
-        if data_seeker.target_pdb_dm.shape[0] != l:
-            data_seeker = DataCreator(target)
-        if self._num_bins == 1:
-            return np.expand_dims(data_seeker.target_pdb_dm, axis=2)
-
-        if self._num_bins == 2:
-            return np.expand_dims(data_seeker.target_pdb_cm, axis=2)
-
-        distance_matrix = data_seeker.target_pdb_dm
-
-        bin_step = 24 / self._num_bins
-
-        bins = [-1.1] + [
-            np.round(bin_step * i, 2) for i in range(self._num_bins - 1)
-        ] + [100]
-        bins_shifted = [0] + [
-            np.round(bin_step * (i + 1), 2) for i in range(self._num_bins - 1)
-        ] + [100]
-
-        binned_distance_matrix = np.array(np.logical_and(
-            distance_matrix[..., None] >= np.array(bins),
-            distance_matrix[..., None] <= np.array(bins_shifted)),
-            dtype=np.float32)
-
-        return binned_distance_matrix
-
     def _pad_feature(self, l, feature):
 
         if len(feature.shape) == 3:
@@ -231,7 +193,7 @@ class MsSsCCmpredGenerator(DataGenerator):
             return
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            cm = self._bin_array(protein, target_sequence_length)
+            cm = bin_array(data_seeker.protein.dm, self._num_bins)
             data['contact_map'] = cm if l is None else self._pad_feature(l, cm)
 
         if self._mode == tf.estimator.ModeKeys.PREDICT:
@@ -336,7 +298,7 @@ class MsCCmpredGenerator(DataGenerator):
             return
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            cm = self._bin_array(protein, target_sequence_length)
+            cm = bin_array(data_seeker.protein.dm, self._num_bins)
             data['contact_map'] = cm if l is None else self._pad_feature(l, cm)
 
         if self._mode == tf.estimator.ModeKeys.PREDICT:
@@ -410,7 +372,7 @@ class MsSsCCmpredPssmGenerator(DataGenerator):
             return
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            cm = self._bin_array(protein, target_sequence_length)
+            cm = bin_array(data_seeker.protein.dm, self._num_bins)
             data['contact_map'] = cm if l is None else self._pad_feature(l, cm)
 
         if self._mode == tf.estimator.ModeKeys.PREDICT:
@@ -481,7 +443,7 @@ class ConvGenerator(DataGenerator):
             return
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            cm = self._bin_array(protein, target_sequence_length)
+            cm = bin_array(data_seeker.protein.dm, self._num_bins)
             data['contact_map'] = cm if l is None else self._pad_feature(l, cm)
 
         if self._mode == tf.estimator.ModeKeys.PREDICT:
@@ -507,7 +469,8 @@ class PeriscopeGenerator(DataGenerator):
         }
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            shapes['contact_map'] = (None, None, 1)
+            dim = 1 if self._num_bins <= 2 else self._num_bins
+            shapes['contact_map'] = (None, None, dim)
 
         types = {f: tf.float32 for f in shapes}
         shapes['sequence_length'] = (1,)
@@ -518,8 +481,8 @@ class PeriscopeGenerator(DataGenerator):
     def _yield_random_data(self, l):
         data = {}
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            data['contact_map'] = np.array(
-                np.random.randint(low=0, high=2, size=(l, l, 1)), np.float32)
+            data['contact_map'] = bin_array(np.array(
+                np.random.randint(low=0, high=2, size=(l, l, 1)), np.float32), self._num_bins)
         data[FEATURES.seq_refs] = np.random.random(
             (l, PROTEIN_BOW_DIM, self._n_refs))
         data[FEATURES.seq_target] = np.random.random((l, PROTEIN_BOW_DIM))
@@ -596,7 +559,7 @@ class PeriscopeGenerator(DataGenerator):
             return
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            cm = self._bin_array(protein, target_sequence_length)
+            cm = bin_array(data_seeker.protein.dm, self._num_bins)
             data['contact_map'] = cm if l is None else self._pad_feature(l, cm)
 
         if self._mode == tf.estimator.ModeKeys.PREDICT:
@@ -622,7 +585,8 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
         }
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            shapes['contact_map'] = (None, None, 1)
+            dim = 1 if self._num_bins <= 2 else self._num_bins
+            shapes['contact_map'] = (None, None, dim)
 
         types = {f: tf.float32 for f in shapes}
         shapes['sequence_length'] = (1,)
@@ -633,8 +597,8 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
     def _yield_random_data(self, l):
         data = {}
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            data['contact_map'] = np.array(
-                np.random.randint(low=0, high=2, size=(l, l, 1)), np.float32)
+            data['contact_map'] = bin_array(np.array(
+                np.random.randint(low=0, high=2, size=(l, l)), np.float32), self._num_bins)
         data[FEATURES.seq_refs] = np.random.random(
             (l, PROTEIN_BOW_DIM + 9, self._n_refs))
         # data[FEATURES.evfold] = np.random.random((l, l, 1))
@@ -711,7 +675,7 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
             return
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            cm = self._bin_array(protein, target_sequence_length)
+            cm = bin_array(data_seeker.protein.dm, self._num_bins)
             data['contact_map'] = cm if l is None else self._pad_feature(l, cm)
 
         if self._mode == tf.estimator.ModeKeys.PREDICT:
@@ -734,7 +698,8 @@ class TemplatesGenerator(DataGenerator):
         }
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            shapes['contact_map'] = (None, None, 1)
+            dim = 1 if self._num_bins <= 2 else self._num_bins
+            shapes['contact_map'] = (None, None, dim)
 
         types = {f: tf.float32 for f in shapes}
         shapes['sequence_length'] = (1,)
@@ -745,8 +710,8 @@ class TemplatesGenerator(DataGenerator):
     def _yield_random_data(self, l):
         data = {}
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            data['contact_map'] = np.array(
-                np.random.randint(low=0, high=2, size=(l, l, 1)), np.float32)
+            data['contact_map'] = bin_array(np.array(
+                np.random.randint(low=0, high=2, size=(l, l, 1)), np.float32), self._num_bins)
         data[FEATURES.seq_refs] = np.random.random(
             (l, PROTEIN_BOW_DIM + 9, self._n_refs))
         data[FEATURES.k_reference_dm_conv] = np.random.random(
@@ -776,7 +741,6 @@ class TemplatesGenerator(DataGenerator):
             data[FEATURES.seq_refs] = data_creator.seq_refs_ss_acc
             data[FEATURES.pwm_w] = data_seeker.pwm_w
 
-
         except Exception as e:
             LOGGER.error(f'Data error for protein {protein}:\n{str(e)}')
             return
@@ -793,7 +757,7 @@ class TemplatesGenerator(DataGenerator):
             return
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            cm = self._bin_array(protein, target_sequence_length)
+            cm = bin_array(data_seeker.protein.dm, self._num_bins)
             data['contact_map'] = cm if l is None else self._pad_feature(l, cm)
 
         if self._mode == tf.estimator.ModeKeys.PREDICT:
@@ -817,7 +781,8 @@ class EvoGenerator(DataGenerator):
         }
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            shapes['contact_map'] = (None, None, 1)
+            dim = 1 if self._num_bins <= 2 else self._num_bins
+            shapes['contact_map'] = (None, None, dim)
 
         types = {f: tf.float32 for f in shapes}
         shapes['sequence_length'] = (1,)
@@ -828,8 +793,8 @@ class EvoGenerator(DataGenerator):
     def _yield_random_data(self, l):
         data = {}
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            data['contact_map'] = np.array(
-                np.random.randint(low=0, high=2, size=(l, l, 1)), np.float32)
+            data['contact_map'] = bin_array(np.array(
+                np.random.randint(low=0, high=2, size=(l, l, 1)), np.float32), self._num_bins)
 
         data[FEATURES.evfold] = np.random.random((l, l, 1))
         data[FEATURES.ccmpred] = np.random.random((l, l, 1))
@@ -892,7 +857,7 @@ class EvoGenerator(DataGenerator):
             return
 
         if self._mode != tf.estimator.ModeKeys.PREDICT:
-            cm = self._bin_array(protein, target_sequence_length)
+            cm = bin_array(data_seeker.protein.dm, self._num_bins)
             data['contact_map'] = cm if l is None else self._pad_feature(l, cm)
 
         if self._mode == tf.estimator.ModeKeys.PREDICT:

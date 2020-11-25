@@ -56,7 +56,7 @@ class ProteinNet:
         self.output_shape = (None, None, self.num_bins)
 
         self.prediction_type = 'regression' if self.num_bins == 1 else 'classification'
-        self.threshold = BIN_THRESHOLDS[self.num_bins]
+        self.threshold = 8 if self.num_bins == 1 else int(self.num_bins/2)
 
     def get_top_prediction(self, predictions, contact_map, sequence_length,
                            mode):
@@ -264,7 +264,7 @@ _nets = {ARCHS.conv: ConvProteinNet,
          ARCHS.periscope: PeriscopeNet,
          ARCHS.periscope2: PeriscopeNet,
          ARCHS.templates: TempaltesNet,
-         ARCHS.evo:EvoNet}
+         ARCHS.evo: EvoNet}
 
 
 def get_model_by_name(model_name, test_dataset=None):
@@ -319,6 +319,7 @@ class ContactMapEstimator:
             'conv_features': self.conv_features,
             'n_refs': k,
             'model_path': self.artifacts_path,
+            'num_bins': self.net.num_bins
         }
         train_epochs = self._train_params['epochs']
         t_drop = self._train_params['templates_dropout']
@@ -380,9 +381,6 @@ class ContactMapEstimator:
             seq_len = features['sequence_length'][0, 0]
 
             contact_pred, weights = self.net.predicted_contact_map(**inputs)
-            # weights = tf.constant([42])
-            # if self._arch in [ARCHS.periscope, ARCHS.periscope2]:
-            #     weights = self.net.weights(**inputs)
 
             max_val = tf.reduce_max(contact_pred)
 
@@ -402,6 +400,9 @@ class ContactMapEstimator:
                 size = [size_shape_0, seq_len, seq_len, self.net.threshold]
                 contact_pred_cm = tf.reduce_sum(tf.slice(
                     contact_pred, begin, size),
+                    axis=3)
+                cm = tf.reduce_sum(tf.slice(
+                    cm, begin, size),
                     axis=3)
             else:
                 contact_pred_cm = tf.math.exp(-1 * contact_pred)

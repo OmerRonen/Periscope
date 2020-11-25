@@ -270,21 +270,9 @@ def pairwise_conv_layer(input_data,
         return activation(out_layer)
 
 
-def upper_triangular_cross_entropy_loss(predicted_contact_map,
-                                        contact_map,
-                                        alpha=5):
-    """Computes binary cross entropy loss over upper triangle of a tensor
-
-    Args:
-        predicted_contact_map (tf.Tensor): probability predictions shape 1 * l * l * 2
-        contact_map (tf.Tensor): contact shape 1 * l * l * 1
-        alpha (float): multiplication factor for the contact class
-
-    Returns:
-        tf.Tensor: loss value
-
-    """
-
+def _get_loss_matrix_binary(predicted_contact_map,
+                            contact_map,
+                            alpha):
     predicted_contact_map_2d = tf.clip_by_value(tf.squeeze(
         predicted_contact_map[..., 0]),
         clip_value_min=1e-10,
@@ -304,12 +292,68 @@ def upper_triangular_cross_entropy_loss(predicted_contact_map,
             tf.log(inverse_predicted_contact_map_2d) * (1 - contact_map_2d))
 
     loss_matrix = tf.where(tf.equal(valid_inds, 0), cm_zeros, loss_matrix)
+    return loss_matrix / tf.reduce_sum(flatten_tf(valid_inds))
+
+
+def _get_loss_matrix_categorical(predicted_contact_map,
+                                 contact_map,
+                                 alpha):
+    """Returns loss matrix for categorical prediction
+
+    Args:
+        predicted_contact_map (tf.Tensor): prediction logits of shape 1,l,l, n_bins
+        contact_map (tf.Tensor): binned distance mat of shape 1,l,l, n_bins
+        alpha (int): factor for contact bins
+
+    Returns:
+
+    """
+    predicted_contact_map_clip = tf.clip_by_value(
+        predicted_contact_map,
+        clip_value_min=1e-10,
+        clip_value_max=1)
+    n_bins = contact_map.get_shape().as_list()[-1]
+    na_arr = tf.cast(tf.equal(tf.reduce_sum(contact_map, -1), 0), tf.float32)
+    valid_inds = tf.where(tf.equal(na_arr, 1), tf.zeros_like(na_arr), tf.ones_like(na_arr))
+
+    contact_bin = int(n_bins / 2)
+
+    alpha_arr = tf.concat([tf.ones_like(contact_map[..., 0:contact_bin]) * alpha,
+                           tf.ones_like(contact_map[..., contact_bin:])], axis=-1)
+    loss_matrix = -1 * (
+            alpha_arr * tf.log(predicted_contact_map_clip) * contact_map)
+
+    loss_matrix = tf.reduce_sum(loss_matrix, axis=-1)
+
+    loss_matrix = tf.where(tf.equal(valid_inds, 0), tf.zeros_like(loss_matrix), loss_matrix)
+    return loss_matrix / tf.reduce_sum(flatten_tf(valid_inds))
+
+
+def upper_triangular_cross_entropy_loss(predicted_contact_map,
+                                        contact_map,
+                                        alpha=5):
+    """Computes binary cross entropy loss over upper triangle of a tensor
+
+    Args:
+        predicted_contact_map (tf.Tensor): probability predictions shape 1 * l * l * 2
+        contact_map (tf.Tensor): contact shape 1 * l * l * 1
+        alpha (float): multiplication factor for the contact class
+
+    Returns:
+        tf.Tensor: loss value
+
+    """
+
+    n_bins = predicted_contact_map.shape[-1]
+    if n_bins == 2:
+        loss_matrix = _get_loss_matrix_binary(predicted_contact_map, contact_map, alpha)
+    else:
+        loss_matrix = _get_loss_matrix_categorical(predicted_contact_map, contact_map, alpha)
 
     loss_matrix_masked = flatten_tf(_mask_lower_triangle(loss_matrix))
 
     upper_triangular_loss = tf.reduce_sum(
-        loss_matrix_masked, name=UPPER_TRIANGULAR_CE_LOSS) / tf.reduce_sum(
-        flatten_tf(valid_inds))
+        loss_matrix_masked, name=UPPER_TRIANGULAR_CE_LOSS)
 
     return upper_triangular_loss
 
