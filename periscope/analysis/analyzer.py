@@ -68,7 +68,7 @@ def get_model_predictions(model: ContactMapEstimator, proteins=None, dataset=Non
 
     proteins = pkl_load(
         os.path.join(model.artifacts_path, f'predicted_proteins_{dataset}.pkl'))
-    model_predictions = {'cm': {}, 'logits': {}, 'weights':{}}
+    model_predictions = {'cm': {}, 'logits': {}, 'weights': {}}
 
     for protein, pred in dict(zip(proteins, preds)).items():
         logits = pred['cm']
@@ -773,7 +773,7 @@ def _save_plot_matrices(model: ContactMapEstimator, predictions):
         data['templates'] = dc.k_reference_dm_test
         data['seqs'] = dc.seq_refs_ss_acc
         data['beff'] = dc.beff
-        pkl_save(os.path.join(target_path,'data.pkl'), data)
+        pkl_save(os.path.join(target_path, 'data.pkl'), data)
         upload_folder(target_path, target_path.split('Periscope/')[-1])
 
 
@@ -1031,8 +1031,10 @@ def ds_accuracy(model, dataset):
             logits_raptor_cat = logits_raptor[inds]
             sorted_gt = pd.DataFrame({'gt': gt_cat, 'pred': logits_cat}).sort_values('pred', ascending=False).loc[:,
                         'gt'].values
-            sorted_gt_raptor = pd.DataFrame({'gt': gt_cat, 'pred': logits_raptor_cat}).sort_values('pred', ascending=False).loc[:,
-                        'gt'].values
+            sorted_gt_raptor = pd.DataFrame({'gt': gt_cat, 'pred': logits_raptor_cat}).sort_values('pred',
+                                                                                                   ascending=False).loc[
+                               :,
+                               'gt'].values
             for top_np in categories[category]:
                 n_preds = int(np.ceil(l / top_np))
                 categories[category][top_np][target] = float(sorted_gt[0:n_preds].mean())
@@ -1048,7 +1050,7 @@ def ds_accuracy(model, dataset):
             data.append(np.round(np.mean(list(categories[k1][k2].values())),
                                  2))
             data_raptor.append(np.round(np.mean(list(categories_raptor[k1][k2].values())),
-                                 2))
+                                        2))
 
     model_acc = pd.Series(data, index=multi_index).round(2)
     raptor_acc = pd.Series(data_raptor, index=multi_index).round(2)
@@ -1068,6 +1070,25 @@ def ds_accuracy(model, dataset):
     accuracy['RaptorX_new'] = raptor_acc
 
     return accuracy
+
+
+def calc_accuracy(pred, gt, top, cat=None):
+    cat_values_map = {'S': 1, 'M': 2, "L": 3}
+
+    l = pred.shape[0]
+
+    seq_dist_mat = get_dist_cat_mat(l)
+    inds = seq_dist_mat == cat_values_map[cat] if cat is not None else seq_dist_mat > 0
+
+    logits_cat = pred[inds]
+    gt_cat = gt[inds]
+
+    pred_gt_df = pd.DataFrame({'gt': gt_cat, 'pred': logits_cat})
+
+    sorted_gt = pred_gt_df.sort_values('pred', ascending=False).loc[:, 'gt'].values
+
+    n_preds = int(np.ceil(l / top))
+    return float(sorted_gt[0:n_preds].mean())
 
 
 def _save_accuracy(prediction_data, model_path, model_name, dataset):
