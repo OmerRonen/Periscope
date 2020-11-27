@@ -87,6 +87,13 @@ def compare_predictions(pred_a, pred_b, sequence_length, mode):
         return tf.metrics.mean(preds)
 
 
+def layer_norm(tensor, unit_axis):
+    layer_mean = tf.reduce_mean(tensor, axis=unit_axis, keepdims=True)
+    layer_std = tf.math.reduce_std(tensor, axis=unit_axis, keepdims=True)
+    return (tensor-layer_mean)/layer_std
+
+
+
 def get_top_category_accuracy(category, top, predictions, contact_map,
                               sequence_length, mode):
     """Computes the average accuracy of top prediction in a distance category
@@ -204,6 +211,8 @@ def pairwise_conv_layer_2(input_data,
 
             # add the bias
             conv_data += bias
+
+            # conv_data = layer_norm(conv_data, unit_axis=3)
 
         if residual:
             conv_data += input_data

@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 import tensorflow as tf
-from periscope.net.basic_ops import _outer_concat, upper_triangular_cross_entropy_loss
+from periscope.net.basic_ops import _outer_concat, upper_triangular_cross_entropy_loss, layer_norm
 from periscope.utils.utils import bin_array
 
 
@@ -60,6 +60,15 @@ class TestBasicOps(unittest.TestCase):
         with tf.Session():
             assert loss.eval() == 0
             assert np.isclose(loss2.eval(), expected_loss)
+
+    def test_layer_norm(self):
+        conv_data = np.random.random((1, 3, 3, 5))
+        conv_data_tf = tf.constant(conv_data)
+        conv_data_tf_norm = layer_norm(conv_data_tf, unit_axis=3)
+        with tf.Session():
+            conv_data_norm = conv_data_tf_norm.eval()
+        norm_data = (conv_data-np.mean(conv_data, axis=3, keepdims=True))/np.std(conv_data, axis=3, keepdims=True)
+        assert np.allclose(conv_data_norm, norm_data)
 
 
 if __name__ == '__main__':

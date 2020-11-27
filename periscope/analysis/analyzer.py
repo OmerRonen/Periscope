@@ -73,7 +73,8 @@ def get_model_predictions(model: ContactMapEstimator, proteins=None, dataset=Non
     for protein, pred in dict(zip(proteins, preds)).items():
         logits = pred['cm']
         weights = pred['weights']
-        contact_probs = logits[..., 0:1]
+        shp = int(logits.shape[-1])
+        contact_probs = np.sum(logits[..., 0:int(shp/2)], axis=-1)
         l = contact_probs.shape[1]
         # top l/2 predictions
         quant = _get_quant(l)
@@ -990,6 +991,8 @@ def ds_accuracy(model, dataset):
         if raptor_logits is None:
             continue
         logits = data['prediction']
+        if len(logits.shape) > 2 and logits.shape[-1] > 1:
+            logits = np.sum(logits[..., 0: int(logits.shape[-1] / 2)], axis=-1)
         gt = data['gt']
         prediction_data[target] = (logits, gt, raptor_logits)
     LOGGER.info(f'Number of predictions for {model.name} dataset {dataset} is {len(prediction_data)}')

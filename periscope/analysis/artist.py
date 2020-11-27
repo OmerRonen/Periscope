@@ -35,7 +35,7 @@ def _get_mask(l):
     return mask
 
 
-def _get_cm(logits, l):
+def get_cm(logits, l):
     quant = _get_quant(l, 2)
 
     logits *= _get_mask(l)
@@ -372,7 +372,7 @@ def evaluate_pred_vs_ref(model_name, target):
     check_path(fig_path)
     gt = data['gt']
     l = gt.shape[0]
-    pred_model, _ = _get_cm(data['prediction'], l)
+    pred_model, _ = get_cm(data['prediction'], l)
     refs_contact = data['refs_contacts']
     labels = list(Protein(target[0:4], target[4]).str_seq)
     evaluation_plot(pred1=pred_model, pred2=refs_contact, gt=gt, fig_name=fig_name, pred2_name='References',
@@ -387,7 +387,7 @@ def evaluate_pred_vs_modeller(model_name, target):
     check_path(fig_path)
     gt = data['gt']
     l = gt.shape[0]
-    pred_model, _ = _get_cm(data['prediction'], l)
+    pred_model, _ = get_cm(data['prediction'], l)
     modeller = _read_csv_np(os.path.join(PATHS.data, dataset, 'modeller', f'{target}.csv'))
     if modeller is None:
         return
@@ -404,11 +404,11 @@ def evaluate_pred_vs_raptor(model_name, target):
     check_path(fig_path)
     gt = data['gt']
     l = gt.shape[0]
-    pred_model, _ = _get_cm(data['prediction'], l)
+    pred_model, _ = get_cm(data['prediction'], l)
     raptor_logits = get_raptor_logits(target)
     if raptor_logits is None:
         return
-    pred_raptor, _ = _get_cm(raptor_logits, l)
+    pred_raptor, _ = get_cm(raptor_logits, l)
     labels = list(Protein(target[0:4], target[4]).str_seq)
 
     evaluation_plot(pred1=pred_model, pred2=pred_raptor, gt=gt, fig_name=fig_name, pred2_name='Raptor', labels=labels)
@@ -423,8 +423,8 @@ def evaluate_pred_vs_evo(model_name, target):
         check_path(fig_path)
         gt = data['gt']
         l = gt.shape[0]
-        pred_model, _ = _get_cm(data['prediction'], l)
-        pred_evo, _ = _get_cm(data[evo], l)
+        pred_model, _ = get_cm(data['prediction'], l)
+        pred_evo, _ = get_cm(data[evo], l)
         labels = list(Protein(target[0:4], target[4]).str_seq)
 
         evaluation_plot(pred1=pred_model, pred2=pred_evo, gt=gt, fig_name=fig_name, pred2_name=evo, labels=labels)
@@ -458,7 +458,7 @@ def _plot_roc(pred_logits, gt, modeller, refs, pred2_logits=None, fig_name=None,
     ax4 = plt.subplot(111)
     l = gt.shape[0]
     gt[gt == -1] = 0
-    predicted_cm1, _ = _get_cm(pred_logits, l)
+    predicted_cm1, _ = get_cm(pred_logits, l)
     fpr, tpr = _get_roc_data(pred_logits, gt)
 
     fpr_modeller, tpr_modeller = _get_fpr_tpr_(modeller, gt)
@@ -488,7 +488,7 @@ def _plot_roc(pred_logits, gt, modeller, refs, pred2_logits=None, fig_name=None,
     ax4.annotate("Periscope", (fpr_method, tpr_method), color='darkred')
     if pred2_logits is not None:
         fpr_2, tpr_2 = _get_roc_data(pred2_logits, gt)
-        predicted_cm2, _ = _get_cm(pred2_logits, l)
+        predicted_cm2, _ = get_cm(pred2_logits, l)
         fpr_method2, tpr_method2 = _get_fpr_tpr_(predicted_cm2, gt)
         ax4.plot(fpr_2, tpr_2, color='orange')
         ax4.plot(fpr_method2,
