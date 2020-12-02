@@ -6,10 +6,12 @@ import numpy as np
 import pandas as pd
 
 from argparse import ArgumentParser
+from numpy.polynomial.polynomial import polyfit
 
 from matplotlib.lines import Line2D
 from scipy import interpolate
 
+from ..analysis.artist import get_cm
 from ..utils.utils import get_data, get_raptor_logits
 from ..utils.constants import PATHS, yaml_load, DATASETS
 from ..analysis.analyzer import ds_accuracy, calc_accuracy
@@ -27,9 +29,19 @@ def parse_args():
     return parser.parse_args()
 
 
+def _get_templates_relative_contribution(data):
+    prediction = data['prediction']
+    l = int(prediction.shape[0])
+    cm, _ = get_cm(prediction, l)
+    w_templates = np.sum(data['weights'][..., 0:10], axis=-1)
+    w_evo = data['weights'][..., 10]
+    ratio = w_templates / (w_evo + w_templates)
+    return np.mean(ratio[cm == 1])
+
+
 def _plot_acc_vs_msa(dataset, model_name):
     targets = getattr(DATASETS, dataset)
-    plot_data = {"Periscope": [], "RaptorX": [], "beff": [], "# of Templates": []}
+    plot_data = {"Periscope": [], "RaptorX": [], "beff": [], "# of Templates": [], "Templates Relative Weight": []}
     for t in targets:
         data = get_data(model_name, t)
         if data is None:
@@ -37,8 +49,8 @@ def _plot_acc_vs_msa(dataset, model_name):
         raptor_logits = get_raptor_logits(t)
         logits = data['prediction']
         gt = data['gt']
-        acc = calc_accuracy(pred=logits, gt=gt, top=2)
-        acc_raptor = calc_accuracy(pred=raptor_logits, gt=gt, top=2)
+        acc = calc_accuracy(pred=logits, gt=gt, top=0.5)
+        acc_raptor = calc_accuracy(pred=raptor_logits, gt=gt, top=0.5)
 
         plot_data['Periscope'].append(acc)
         plot_data['RaptorX'].append(acc_raptor)
@@ -46,6 +58,7 @@ def _plot_acc_vs_msa(dataset, model_name):
         templates = data['templates']
         n_refs = np.sum(np.max(np.max(templates, axis=0), axis=0) > 0)
         plot_data['# of Templates'].append(n_refs)
+        plot_data['Templates Relative Weight'].append(_get_templates_relative_contribution(data))
 
     plot_df = pd.DataFrame(plot_data)
 
@@ -62,12 +75,17 @@ def _plot_acc_vs_msa(dataset, model_name):
         raptorx_smooth = RaptorX_spline(x_new)
         plot_df_smooth = pd.DataFrame({x_feature: x_new, 'Periscope': periscope_smooth, 'RaptorX': raptorx_smooth})
         return plot_df_smooth
-
-    plt.figure(figsize=(10, 8))
-    plt.subplot(211)
+    plt.figure(figsize=(7, 7))
+    fig = plt.gcf()
+    fig.suptitle(f"{dataset} predictions", fontsize=14)
+    plt.subplot(321)
     plot_df_smooth = _get_smooth_df('beff', plot_df)
-    plt.plot('beff', 'Periscope', data=plot_df_smooth, marker='o', alpha=0.4, color='blue')
-    plt.plot('beff', 'RaptorX', data=plot_df_smooth, marker='o', alpha=0.4, color="orange")
+    plt.scatter('beff', 'Periscope', data=plot_df_smooth, marker='o', alpha=0.4, color='blue')
+    b, m = polyfit(plot_df_smooth.beff, plot_df_smooth.Periscope, 1)
+    plt.plot(plot_df_smooth.beff, b + m * plot_df_smooth.beff, '--', color='blue', alpha=0.6)
+    plt.scatter('beff', 'RaptorX', data=plot_df_smooth, marker='o', alpha=0.4, color="orange")
+    b, m = polyfit(plot_df_smooth.beff, plot_df_smooth.RaptorX, 1)
+    plt.plot(plot_df_smooth.beff, b + m * plot_df_smooth.beff, '--', color='orange', alpha=0.6)
     plt.xlabel('$\log(Beff)$')
     plt.ylabel('Accuracy')
     custom_lines = [Line2D([0], [0], color='blue', lw=4),
@@ -75,11 +93,42 @@ def _plot_acc_vs_msa(dataset, model_name):
     plt.legend(custom_lines, ['Periscope', 'RaptorX'], loc=2, prop={'size': 8})
     plot_df_smooth = _get_smooth_df('# of Templates', plot_df)
 
-    plt.subplot(212)
-    plt.plot('# of Templates', 'Periscope', data=plot_df_smooth, marker='o', alpha=0.4, color='blue')
-    plt.plot('# of Templates', 'RaptorX', data=plot_df_smooth, marker='o', alpha=0.4, color="orange")
-    plt.ylabel('Accuracy')
+    plt.subplot(322)
+    n_temps = np.unique(plot_df_smooth['# of Templates'])
+    data_raptor = [list(plot_df_smooth.RaptorX[plot_df_smooth['# of Templates'] == n]) for n in n_temps]
+    data_periscope = [list(plot_df_smooth.Periscope[plot_df_smooth['# of Templates'] == n]) for n in n_temps]
+
+    ticks = n_temps
+
+    def set_box_color(bp, color):
+        plt.setp(bp['boxes'], color=color)
+        plt.setp(bp['whiskers'], color=color)
+        plt.setp(bp['caps'], color=color)
+        plt.setp(bp['medians'], color=color)
+
+    bpl = plt.boxplot(data_periscope, positions=np.array(range(len(data_periscope))) * 2.0 - 0.4, sym='', widths=0.6)
+    bpr = plt.boxplot(data_raptor, positions=np.array(range(len(data_raptor))) * 2.0 + 0.4, sym='', widths=0.6)
+    set_box_color(bpl, 'blue')  # colors are from http://colorbrewer2.org/
+    set_box_color(bpr, 'orange')
+
+    # draw temporary red and blue lines and use them to create a legend
     plt.xlabel('# of Templates')
+    # plt.ylabel('Accuracy')
+    plt.xticks(range(0, len(ticks) * 2, 2), ticks)
+    plt.xlim(-2, len(ticks) * 2)
+    plt.ylim(0, 1)
+    plt.tight_layout()
+    # plt.scatter('# of Templates', 'Periscope', data=plot_df_smooth, marker='o', alpha=0.4, color='blue')
+    # plt.scatter('# of Templates', 'RaptorX', data=plot_df_smooth, marker='o', alpha=0.4, color="orange")
+    # plt.ylabel('Accuracy')
+    # plt.xlabel('# of Templates')
+
+    plt.subplot(323)
+    plot_df_smooth = _get_smooth_df('beff', plot_df)
+
+    plt.scatter('beff', 'Templates Relative Weight', data=plot_df_smooth, marker='o', alpha=0.4, color='blue')
+    plt.xlabel('$\log(Beff)$')
+    plt.ylabel('Templates Relative Weight')
     plt.savefig(os.path.join(PATHS.models, model_name, 'predictions', f'{dataset}_msa_accuracy.png'))
 
 
