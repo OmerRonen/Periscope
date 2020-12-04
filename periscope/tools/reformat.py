@@ -3,7 +3,7 @@ import os
 import random
 
 from ..utils.constants import PATHS
-from ..utils.utils import get_target_path, check_path
+from ..utils.utils import check_path, get_target_hhblits_path
 
 
 def main():
@@ -12,7 +12,7 @@ def main():
     for file in a2m_files:
         target = file.split('.')[0]
         a2m_file = os.path.join(PATHS.hhblits, 'a2m', file)
-        target_hhblits_path = os.path.join(get_target_path(target), 'hhblits')
+        target_hhblits_path = get_target_hhblits_path(target)
         check_path(target_hhblits_path)
         fasta_file = os.path.join(target_hhblits_path, f'{target}_v2.fasta')
         a3m_file = os.path.join(target_hhblits_path, f'{target}.a3m')

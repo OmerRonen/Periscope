@@ -22,7 +22,7 @@ from ..utils.utils import (convert_to_aln, write_fasta, MODELLER_VERSION, create
                            pkl_save, pkl_load, compute_structures_identity_matrix, VERSION, get_modeller_pdb_file,
                            get_target_path, get_target_ccmpred_file, check_path, read_fasta, run_clustalo,
                            get_aln_fasta, get_predicted_pdb, save_chain_pdb, get_a3m_fname, get_target_scores_file,
-                           timefunc)
+                           timefunc, get_target_hhblits_path)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -58,7 +58,7 @@ class DataCreator:
         self.has_refs = self.sorted_structures is not None
         self.has_refs_new = len(self._get_refs_aln()) > 1
         self.refactored = self.metadata['refactored']
-        self.recreated = self.metadata.get('recreated', False)
+        self.recreated = self.metadata.get('new_data', False)
         if not os.path.isfile(self.fasta_fname):
             self._write_fasta()
 
@@ -72,7 +72,7 @@ class DataCreator:
 
         self._run_hhblits()
         msa = self._parse_msa()
-        self.evfold
+        # self.evfold
         self.ccmpred
         self._find_all_references(msa)
         self.k_reference_dm_new
@@ -81,7 +81,7 @@ class DataCreator:
         LOGGER.info('Sorting structures')
         self._get_sorted_structures()
         LOGGER.info('Saving metadata')
-        self.metadata['recreated'] = True
+        self.metadata['new_data'] = True
         self._save_metadata()
 
     def recreate_data(self):
@@ -397,7 +397,7 @@ class DataCreator:
         evfold_path = os.path.join(get_target_path(self.target), 'evfold')
         file_ec = os.path.join(evfold_path, '%s_v%s.txt' % target_version)
         file_params = os.path.join(evfold_path, '%s_%s.params' % target_version)
-        hhblits_path = os.path.join(get_target_path(self.target), 'hhblits')
+        hhblits_path = get_target_hhblits_path(self.target)
         file_msa = os.path.join(hhblits_path, '%s_v%s.fasta' % target_version)
 
         if not os.path.isfile(file_msa):
@@ -413,7 +413,7 @@ class DataCreator:
         old_a2m_file = os.path.join(PATHS.msa, 'hhblits', 'a2m', f'{self.target}.a2m')
         if not os.path.isfile(old_a2m_file):
             return False
-        target_hhblits_path = os.path.join(get_target_path(self.target), 'hhblits')
+        target_hhblits_path = get_target_hhblits_path(self.target)
         check_path(target_hhblits_path)
         fasta_file = os.path.join(target_hhblits_path, self.target + '_v%s.fasta' % version)
 
@@ -448,7 +448,7 @@ class DataCreator:
         version = self._MSA_VERSION
 
         sequence = SeqIO.SeqRecord(seq, name=target, id=target)
-        target_hhblits_path = os.path.join(get_target_path(target), 'hhblits')
+        target_hhblits_path = get_target_hhblits_path(target)
         check_path(target_hhblits_path)
 
         query = os.path.join(target_hhblits_path, target + '.fasta')
@@ -457,13 +457,13 @@ class DataCreator:
         output_reformat1 = os.path.join(target_hhblits_path, target + '.a2m')
         output_reformat2 = os.path.join(target_hhblits_path, target + '_v%s.fasta' % version)
 
-        db_hh = '/vol/sci/bio/data/or.zuk/projects/ContactMaps/data/uniprot20_2016_02/uniprot20_2016_02'
+        db_hh = '/vol/sci/bio/data/or.zuk/projects/ContactMaps/data/uniref30/UniRef30_2020_06'
 
         hhblits_params = '-n 3 -e 1e-3 -maxfilt 10000000000 -neffmax 20 -nodiff -realign_max 10000000000'
 
         hhblits_cmd = f'hhblits -i {query} -d {db_hh} {hhblits_params} -oa3m {output_hhblits}'
-
-        subprocess.run(hhblits_cmd, shell=True, stdout=open(os.devnull, 'wb'))
+        subprocess.run(hhblits_cmd, shell=True)
+        # subprocess.run(hhblits_cmd, shell=True, stdout=open(os.devnull, 'wb'))
         reformat = ['reformat.pl', output_hhblits, output_reformat1]
         subprocess.run(reformat)
 
@@ -525,7 +525,10 @@ class DataCreator:
         def _get_id(seq):
             if seq.id == self.target:
                 return seq.id
-            return seq.id.split('|')[1]
+            if "|" in seq.id:
+                return seq.id.split('|')[1]
+            return seq.id.split('_')[1]
+
 
         # fasta_seqs = list(SeqIO.parse(msa_file, "fasta", alphabet=Gapped(ExtendedIUPACProtein())))
         fasta_seqs = list(SeqIO.parse(msa_file, "fasta"))
@@ -1397,7 +1400,7 @@ class DataCreator:
 
     def _get_refs_aln(self):
 
-        clustalo_path = os.path.join(get_target_path(self.target), 'clustalo')
+        clustalo_path = os.path.join(get_target_path(self.target), 'clustalo_new')
         check_path(clustalo_path)
         fname = os.path.join(clustalo_path, f'aln_refs.fasta')
 
