@@ -6,6 +6,8 @@ from collections import namedtuple
 
 import yaml
 
+from periscope.utils.utils import get_target_hhblits_path
+
 RAPTOR_PATH = '/vol/sci/bio/data/or.zuk/projects/ContactMaps/src/RaptorX-3DModeling/DL4DistancePrediction4/Scripts'
 _periscope_path = '/vol/sci/bio/data/or.zuk/projects/ContactMaps/src/Periscope'
 DATA_PATH = os.path.join(_periscope_path, 'data')
@@ -55,7 +57,7 @@ def get_target_path(target):
 
 
 def get_a3m_fname(target):
-    target_hhblits_path = os.path.join(get_target_path(target), 'hhblits')
+    target_hhblits_path = get_target_hhblits_path(target)
     a3m_file = os.path.join(target_hhblits_path, '%s.a3m' % target)
     return a3m_file
 

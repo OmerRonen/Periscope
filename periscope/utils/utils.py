@@ -263,7 +263,9 @@ def run_clustalo(sequences, fname, target=None, structures=None):
     def _get_id(h):
         if len(h.id) == 5:
             return h.id
-        return h.id.split('|')[1]
+        if "|" in h.id:
+            return h.id.split('|')[1]
+        return h.id.split('_')[1]
 
     msa_short = [msa[0]] + [h for h in msa if _get_id(h) in structures]
     valid_inds = np.array(list(msa[0].seq)) != '-'
@@ -623,7 +625,7 @@ def get_target_scores_file(target):
 
 
 def get_target_ccmpred_file(target):
-    ccmpred_path = os.path.join(get_target_path(target), 'ccmpred')
+    ccmpred_path = os.path.join(get_target_path(target), 'ccmpred_new')
     check_path(ccmpred_path)
 
     ccmpred_file = os.path.join(ccmpred_path, f'{target}.mat')
@@ -635,8 +637,12 @@ def get_target_evfold_file(target):
     return os.path.join(get_target_path(target), 'evfold', f'{target}_v2.pkl')
 
 
+def get_target_hhblits_path(target):
+    return os.path.join(get_target_path(target), 'hhblits_new')
+
+
 def get_aln_fasta(target):
-    target_hhblits_path = os.path.join(get_target_path(target), 'hhblits')
+    target_hhblits_path = get_target_hhblits_path(target)
     fasta_file = os.path.join(target_hhblits_path, f'{target}_v2.fasta')
     return fasta_file
 
@@ -648,7 +654,7 @@ def get_clustalo_aln(target, n_refs=N_REFS):
 
 
 def get_a3m_fname(target):
-    target_hhblits_path = os.path.join(get_target_path(target), 'hhblits')
+    target_hhblits_path = get_target_hhblits_path(target)
     a3m_file = os.path.join(target_hhblits_path, f'{target}.a3m')
     return a3m_file
 

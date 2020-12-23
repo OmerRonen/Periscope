@@ -4,7 +4,7 @@ matplotlib
 ipython
 biopython==1.78
 evcouplings
-pandas
+pandas==0.19.2
 numpy
 pytest
 deepdiff
