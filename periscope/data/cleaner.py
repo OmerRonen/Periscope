@@ -5,7 +5,7 @@ import logging
 
 from .creator import DataCreator
 from .seeker import DataSeeker
-from ..utils.constants import PATHS, DATASETS
+from ..utils.constants import PATHS, DATASETS, DATASETS_FULL
 from ..utils.utils import check_path, get_pdb_fname, get_target_path, get_target_ccmpred_file, get_target_evfold_file, \
     get_aln_fasta, get_clustalo_aln
 
@@ -43,26 +43,33 @@ def _remove_file(fname):
 
 
 def clean_hhblits():
-    train = set(DATASETS.train) | set(DATASETS.eval)
-    test = set(DATASETS.pfam) | set(DATASETS.membrane) | set(DATASETS.cameo) | set(DATASETS.cameo41)
+    train = set(DATASETS_FULL.train) | set(DATASETS_FULL.eval)
+    test = set(DATASETS_FULL.pfam) | set(DATASETS_FULL.membrane) | set(DATASETS_FULL.cameo) | set(DATASETS_FULL.cameo41)
     all_targets = train | test
     for t in all_targets:
-        t_path = os.path.join(get_target_path(t), 'hhblits')
+        old_dir = os.path.join(get_target_path(t), 'hhblits')
+        if os.path.exists(old_dir):
+            LOGGER.info(f'Removing {old_dir}')
+            shutil.rmtree(old_dir)
+        t_path = os.path.join(get_target_path(t), 'hhblits_new')
         a3m_file = os.path.join(t_path, f'{t}.a3m')
         a2m_file = os.path.join(t_path, f'{t}.a2m')
-
-        _remove_file(a3m_file)
-        _remove_file(a2m_file)
-    for t in train:
-        fasta_aln = get_aln_fasta(t)
-        clustalo_aln = get_clustalo_aln(t)
-        evfold_path = os.path.join(get_target_path(t), 'evfold')
-        evfold_params = os.path.join(evfold_path, f'{t}_2.params')
-        if not os.path.exists(evfold_path):
-            continue
-        if len(os.listdir(evfold_path)) > 1 and os.path.isfile(clustalo_aln):
-            _remove_file(fasta_aln)
-            _remove_file(evfold_params)
+        hhr_file = os.path.join(t_path, f'{t}.hhr')
+        fasta_file = get_aln_fasta(t)
+        if os.path.isfile(fasta_file):
+            _remove_file(a3m_file)
+            _remove_file(a2m_file)
+            _remove_file(hhr_file)
+    # for t in train:
+    #     fasta_aln = get_aln_fasta(t)
+    #     clustalo_aln = get_clustalo_aln(t)
+    #     evfold_path = os.path.join(get_target_path(t), 'evfold')
+    #     evfold_params = os.path.join(evfold_path, f'{t}_2.params')
+    #     if not os.path.exists(evfold_path):
+    #         continue
+    #     if len(os.listdir(evfold_path)) > 1 and os.path.isfile(clustalo_aln):
+    #         _remove_file(fasta_aln)
+    #         _remove_file(evfold_params)
 
 
 def clean_structures(target):

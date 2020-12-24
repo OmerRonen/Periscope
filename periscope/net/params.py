@@ -29,7 +29,7 @@ class NetParams:
 
         params['train']['batch_size'] = params['train'].get('batch_size', 1)
         params['train']['templates_dropout'] = params['train'].get('templates_dropout', 0)
-
+        params['train']['require_template'] = params['train'].get('require_template', True)
         if 'features' in params['net']['data'] and 'conv_features' not in params['net']['data']:
             params['net']['data']['conv_features'] = params['net']['data'][
                 'features']
@@ -60,7 +60,8 @@ class NetParams:
                             train_dataset='train',
                             eval_dataset='eval',
                             test_dataset='pfam',
-                            templates_dropout=0):
+                            templates_dropout=0,
+                            require_template=True):
         """Generates the parameters for convolution contact map predictor
 
         Args:
@@ -83,6 +84,7 @@ class NetParams:
             eval_dataset (Union[str, None]): name of the eval dataset
             test_dataset (Union[str, None]): name of the test dataset
             templates_dropout (float): probability to use all zero array instead of templates.
+            require_template (bool): if True only proteins with known templates are used
 
         Returns:
             dict: the parameters dict
@@ -112,6 +114,7 @@ class NetParams:
             'epochs': epochs,
             'batch_size': batch_size,
             "templates_dropout":templates_dropout,
+            'require_template': require_template,
             'path': os.path.join(PATHS.models, name),
             'in_train': {
                 'save_summary_steps': save_summary_steps,

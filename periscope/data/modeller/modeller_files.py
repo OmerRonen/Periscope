@@ -10,7 +10,7 @@ n_structures = int(sys.argv[4])
 
 files_path = sys.argv[5]
 modeller_path = sys.argv[6]
-src_path = '/cs/zbio/orzuk/projects/ContactMaps/src/Periscope'
+src_path = '/vol/sci/bio/data/or.zuk/projects/ContactMaps/src/Periscope'
 target = target_protein + target_chain
 
 
@@ -40,7 +40,7 @@ files_to_remove = [
     os.path.join(files_path, f) for f in files
     if f.endswith('.pdb') or f.endswith('sch') or 'D00000' in f
     or 'V9999' in f or f.endswith('rsr') or f.endswith('ali')
-    or f.endswith('ini') or f.endswith('ent')
+    or f.endswith('ini') or f.endswith('ent') and target in f
 ]
 for file in files_to_remove:
     os.remove(file)

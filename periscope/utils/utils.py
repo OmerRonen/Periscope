@@ -15,7 +15,7 @@ import pickle
 import time
 import logging
 
-from .constants import PATHS, LOCAL, DATASETS, N_REFS
+from .constants import PATHS, LOCAL, DATASETS, N_REFS, DATASETS_FULL
 
 LOGGER = logging.getLogger(__name__)
 warnings.simplefilter('ignore', yaml.YAMLLoadWarning)
@@ -40,7 +40,7 @@ def bin_array(distance_matrix, n_bins, threshold=8, upper_lim=24):
     no_contact_bins = [threshold + (bin_step * i) for i in range(1, half_bins)]
     all_bins = contact_bins + no_contact_bins
     bins = [-1.1] + all_bins
-    bins_shifted = [0] + all_bins[1: ] + [np.infty]
+    bins_shifted = [0] + all_bins[1:] + [np.infty]
 
     binned_distance_matrix = np.array(np.logical_and(
         distance_matrix[..., None] >= np.array(bins),
@@ -60,8 +60,12 @@ def get_raptor_logits(target):
     return raptor_data[3]['CbCb']
 
 
-def get_data(model_name, target):
-    dataset = get_target_dataset(target)
+def get_quant(l, top=2):
+    return ((l - 2 * top) - 1) / (l - 1)
+
+
+def get_data(model_name, target, family=None):
+    dataset = get_target_dataset(target) if family is None else family
     prediction_path = os.path.join(PATHS.drive, model_name, 'predictions', dataset, target)
     data = pkl_load(os.path.join(prediction_path, 'data.pkl'))
     return data
@@ -237,10 +241,12 @@ def pkl_load(filename):
     return data
 
 
-def get_target_dataset(target):
-    datasets = 'train eval pfam cameo membrane cameo41'.split(' ')
+def get_target_dataset(target, family=None):
+    if family is not None:
+        return family
+    datasets = 'pfam cameo membrane cameo41 train eval'.split(' ')
     for d in datasets:
-        if target in getattr(DATASETS, d):
+        if target in getattr(DATASETS_FULL, d):
             return d
 
 
@@ -249,7 +255,7 @@ def check_path(path):
         os.makedirs(path)
 
 
-def run_clustalo(sequences, fname, target=None, structures=None):
+def run_clustalo(sequences, fname, target=None, structures=None, family=None):
     SeqIO.write(sequences, fname, 'fasta')
 
     if structures is None:
@@ -257,7 +263,7 @@ def run_clustalo(sequences, fname, target=None, structures=None):
         subprocess.run(cmd, shell=True)
         return
 
-    msa_file = get_aln_fasta(target)
+    msa_file = get_aln_fasta(target, family)
     msa = read_fasta(msa_file, full=True)
 
     def _get_id(h):
@@ -267,10 +273,14 @@ def run_clustalo(sequences, fname, target=None, structures=None):
             return h.id.split('|')[1]
         return h.id.split('_')[1]
 
-    msa_short = [msa[0]] + [h for h in msa if _get_id(h) in structures]
+    msa_structures = [msa[0]] + [h for h in msa if _get_id(h) in structures]
     valid_inds = np.array(list(msa[0].seq)) != '-'
-    for h in msa_short:
-        h.seq = Seq("".join(np.array(list(h.seq))[valid_inds]))
+    msa_short = []
+    for h in msa_structures:
+        if len(h.seq) != len(msa_structures[0].seq):  # we need the profile to be aligned
+            continue
+        msa_short.append(SeqIO.SeqRecord(Seq("".join(np.array(list(h.seq))[valid_inds])),
+                                         id=h.id, name=h.name, description=h.description))
 
     with tempfile.NamedTemporaryFile(suffix='.fasta') as f:
 
@@ -602,8 +612,19 @@ def get_fasta_fname(target, full):
     return os.path.join(get_target_path(target), f'{target}.fasta')
 
 
-def get_target_path(target, new=False):
-    f_name = target + '_new' if new else target
+def get_family_path(family):
+    fam_path = os.path.join(PATHS.periscope, 'data', 'families', family)
+    check_path(fam_path)
+    return fam_path
+
+
+def get_target_path(target, family=None):
+    if family is not None:
+        fam_path = os.path.join(PATHS.periscope, 'data', 'families', family, target)
+        check_path(fam_path)
+        return fam_path
+
+    f_name = target
     t_path = os.path.join(PATHS.proteins, target[1:3], f_name)
     check_path(t_path)
     return t_path
@@ -620,15 +641,18 @@ def get_predicted_pdb(model, target, sswt=5, selectrr='2.0L'):
     return predicted_pdb
 
 
-def get_target_scores_file(target):
-    return os.path.join(get_target_path(target), "scores.pkl")
+def get_target_scores_file(target, family=None):
+    return os.path.join(get_target_path(target, family), "scores.pkl")
 
 
-def get_target_ccmpred_file(target):
-    ccmpred_path = os.path.join(get_target_path(target), 'ccmpred_new')
+def get_target_ccmpred_file(target, family=None):
+    pth = get_target_path(target) if family is None else get_family_path(family)
+    ccmpred_path = os.path.join(pth, 'ccmpred_new')
     check_path(ccmpred_path)
-
-    ccmpred_file = os.path.join(ccmpred_path, f'{target}.mat')
+    mat_name = f'{target}.mat' if family is None else f'{family}.mat'
+    # if family == 'xcl1_family':
+    #     mat_name = f'{target}.mat'
+    ccmpred_file = os.path.join(ccmpred_path, mat_name)
 
     return ccmpred_file
 
@@ -641,7 +665,11 @@ def get_target_hhblits_path(target):
     return os.path.join(get_target_path(target), 'hhblits_new')
 
 
-def get_aln_fasta(target):
+def get_aln_fasta(target, family=None):
+    if family is not None:
+        fasta_file = os.path.join(get_family_path(family), 'msa.fasta')
+        return fasta_file
+
     target_hhblits_path = get_target_hhblits_path(target)
     fasta_file = os.path.join(target_hhblits_path, f'{target}_v2.fasta')
     return fasta_file
@@ -653,7 +681,10 @@ def get_clustalo_aln(target, n_refs=N_REFS):
     return os.path.join(clustalo_path, f'aln_r_{n_refs}.fasta')
 
 
-def get_a3m_fname(target):
+def get_a3m_fname(target, family=None):
+    if family is not None:
+        fasta_file = os.path.join(get_family_path(family), 'msa.a3m')
+        return fasta_file
     target_hhblits_path = get_target_hhblits_path(target)
     a3m_file = os.path.join(target_hhblits_path, f'{target}.a3m')
     return a3m_file

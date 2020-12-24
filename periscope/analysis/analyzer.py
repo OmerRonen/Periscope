@@ -1,3 +1,4 @@
+import itertools
 import logging
 import os
 
@@ -54,7 +55,8 @@ def _get_average_prediction(model_names, dataset):
     return model_predictions
 
 
-def get_model_predictions(model: ContactMapEstimator, proteins=None, dataset=None):
+def get_model_predictions(model: ContactMapEstimator, proteins=None, dataset=None, family=None,
+                          require_template=True):
     dataset = model.predict_data_manager.dataset if dataset is None else dataset
     predictions_path = os.path.join(model.path, 'predictions')
     check_path(predictions_path)
@@ -62,7 +64,10 @@ def get_model_predictions(model: ContactMapEstimator, proteins=None, dataset=Non
     if os.path.isfile(prediction_file) and proteins is None:
         return pkl_load(prediction_file)
     if proteins is not None:
-        preds = list(model.get_custom_predictions_gen(proteins, dataset))
+        LOGGER.info(f'require template {require_template}')
+
+        preds = list(model.get_custom_predictions_gen(proteins, dataset, family,
+                                                      require_template=require_template))
     else:
         preds = list(model.get_predictions_generator())
 
@@ -74,7 +79,7 @@ def get_model_predictions(model: ContactMapEstimator, proteins=None, dataset=Non
         logits = pred['cm']
         weights = pred['weights']
         shp = int(logits.shape[-1])
-        contact_probs = np.sum(logits[..., 0:int(shp/2)], axis=-1)
+        contact_probs = np.sum(logits[..., 0:int(shp / 2)], axis=-1)
         l = contact_probs.shape[1]
         # top l/2 predictions
         quant = _get_quant(l)
@@ -785,9 +790,9 @@ def save_model_predictions(model: ContactMapEstimator, protein, outfile):
 
 
 def save_model_analysis(model: ContactMapEstimator, proteins=None):
-    predictions = get_model_predictions(model, proteins=proteins)
+    predictions = model.predict(proteins=proteins)
     if proteins is None:
-        _get_top_category_accuracy_np(predictions['logits'], model.path, model.name, model.predict_data_manager.dataset)
+        get_top_category_accuracy_np(predictions['logits'], model.path, model.name, model.predict_data_manager.dataset)
 
     _save_plot_matrices(model, predictions)
 
@@ -797,7 +802,7 @@ def write_model_analysis(model, model_path, model_name, dataset, models=None, pl
         os.mkdir(model_path)
 
     predictions = get_model_predictions(model) if models is None else _get_average_prediction(models, dataset)
-    _get_top_category_accuracy_np(predictions['logits'], model_path, model_name, dataset)
+    get_top_category_accuracy_np(predictions['logits'], model_path, model_name, dataset)
     if plot:
         for target in predictions['cm'].keys():
             try:
@@ -938,7 +943,7 @@ def _get_accuracy_per_seq_dist(model_name, dataset):
     return accuracy_per_bin
 
 
-def _get_top_category_accuracy_np(logits, model_path, model_name, dataset):
+def get_top_category_accuracy_np(logits, model_path, model_name, dataset):
     logits = {k: v for k, v in logits.items() if v is not None}
     prediction_data = {}
 
@@ -980,11 +985,99 @@ def calculate_accuracy(logits, gt):
     return categories
 
 
-def ds_accuracy(model, dataset):
+def get_cm(logits, l):
+    quant = _get_quant(l, 2)
+
+    logits *= _get_mask(l)
+    thres = np.quantile(logits[np.triu_indices(l)], quant)
+    cm = np.where(logits >= thres, 1, 0)
+    return cm, thres
+
+
+def _get_accuracy(prediction, gt):
+    prediction_mat_triu = np.clip(prediction[np.triu_indices(
+        prediction.shape[0])],
+                                  a_min=0,
+                                  a_max=1)
+    target_cm_triu = gt[np.triu_indices(gt.shape[0])]
+
+    acc = np.round(np.mean(target_cm_triu[prediction_mat_triu > 0]), 2)
+    return acc
+
+
+def get_top_2l_acc(logits, gt):
+    l = int(logits.shape[0])
+    cm_hat, _ = get_cm(logits, l)
+    acc = _get_accuracy(cm_hat, gt)
+    return acc
+
+
+def accuracy_short(model, datasets):
+    acc_short = {'RaptorX': {'mean': None, "std": None}, 'Periscope': {'mean': None, "std": None},
+                 "diff": {'mean': None, "std": None}}
+    acc_vec = {}
+    acc_vec_raptor = {}
+    for dataset in datasets:
+        acc = _get_acc_raw_2l(model, dataset)
+        acc_vec = {**acc['Periscope'], **acc_vec}
+        acc_vec_raptor = {**acc['Raptor'], **acc_vec_raptor}
+
+        # ds_acc = list(itertools.chain.from_iterable([list(categories[c][2].values()) for c in ['M', 'S', "L"]]))
+        # ds_acc_r = list(itertools.chain.from_iterable([list(categories_raptor[c][2].values()) for c in ['M', 'S', "L"]]))
+        #
+        # acc_vec += ds_acc
+        # acc_vec_raptor += ds_acc_r
+    acc_vec_raptor = np.array(list(acc_vec_raptor.values()))
+    acc_vec = np.array(list(acc_vec.values()))
+
+    acc_short['RaptorX']['mean'] = np.mean(acc_vec_raptor)
+    acc_short['RaptorX']['std'] = np.std(acc_vec_raptor)
+    acc_short['Periscope']['mean'] = np.mean(acc_vec)
+    acc_short['Periscope']['std'] = np.std(acc_vec)
+    diff_vec = np.array(acc_vec_raptor) - np.array(acc_vec)
+    acc_short['diff']['mean'] = np.mean(diff_vec)
+    acc_short['diff']['std'] = np.std(diff_vec)
+
+    LOGGER.info(f"\n\n{acc_short}")
+
+
+def _get_acc_raw_2l(model, dataset):
+    prediction_data = {}
+    ds_path = os.path.join(PATHS.models, model.name, 'predictions', dataset)
+    accuracy_out = {'Periscope': {}, 'Raptor': {}, "Diff": {}}
+    for target in os.listdir(ds_path):
+        target_ds = get_target_dataset(target)
+        if target_ds is None:
+            continue
+        data = get_data(model.name, target)
+        if data is None:
+            continue
+        raptor_logits = get_raptor_logits(target)
+        if raptor_logits is None:
+            continue
+        logits = data['prediction']
+        if len(logits.shape) > 2 and logits.shape[-1] > 1:
+            logits = np.sum(logits[..., 0: int(logits.shape[-1] / 2)], axis=-1)
+        gt = data['gt']
+        prediction_data[target] = (logits, gt, raptor_logits)
+        acc = get_top_2l_acc(logits=logits, gt=gt)
+        valid_raptor = raptor_logits is not None and raptor_logits.shape[0] == gt.shape[0]
+        acc_raptor = get_top_2l_acc(logits=raptor_logits, gt=gt) if valid_raptor else 0
+        accuracy_out['Periscope'][target] = acc
+        accuracy_out['Raptor'][target] = acc_raptor
+        accuracy_out['Diff'][target] = acc - acc_raptor
+
+    LOGGER.info(pd.DataFrame(accuracy_out).sort_values('Diff', ascending=False).head(7))
+
+    return accuracy_out
+
+
+def _get_acc_raw(model, dataset):
     prediction_data = {}
     ds_path = os.path.join(PATHS.models, model.name, 'predictions', dataset)
     for target in os.listdir(ds_path):
-        if target not in getattr(DATASETS, dataset):
+        target_ds = get_target_dataset(target)
+        if target_ds is None:
             continue
         data = get_data(model.name, target)
         raptor_logits = get_raptor_logits(target)
@@ -1031,7 +1124,11 @@ def ds_accuracy(model, dataset):
 
             logits_cat = logits[inds]
             gt_cat = gt[inds]
-            logits_raptor_cat = logits_raptor[inds]
+            try:
+                logits_raptor_cat = logits_raptor[inds]
+            except IndexError:
+                logits_raptor_cat = np.zeros_like(logits)
+
             sorted_gt = pd.DataFrame({'gt': gt_cat, 'pred': logits_cat}).sort_values('pred', ascending=False).loc[:,
                         'gt'].values
             sorted_gt_raptor = pd.DataFrame({'gt': gt_cat, 'pred': logits_raptor_cat}).sort_values('pred',
@@ -1042,6 +1139,14 @@ def ds_accuracy(model, dataset):
                 n_preds = int(np.ceil(l / top_np))
                 categories[category][top_np][target] = float(sorted_gt[0:n_preds].mean())
                 categories_raptor[category][top_np][target] = float(sorted_gt_raptor[0:n_preds].mean())
+
+    return {"categories": categories, "categories_raptor": categories_raptor}
+
+
+def ds_accuracy(model, dataset):
+    acc_raw = _get_acc_raw(model, dataset)
+    categories = acc_raw['categories']
+    categories_raptor = acc_raw['categories_raptor']
 
     keys_multiindex = [['Short', 'Medium', 'Long'],
                        ['Top L', 'Top L/2', 'Top L/5', 'Top L/10']]
