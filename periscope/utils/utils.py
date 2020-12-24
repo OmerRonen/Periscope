@@ -602,6 +602,12 @@ def get_fasta_fname(target, full):
     return os.path.join(get_target_path(target), f'{target}.fasta')
 
 
+def get_family_path(family):
+    fam_path = os.path.join(PATHS.periscope, 'data', 'families', family)
+    check_path(fam_path)
+    return fam_path
+
+
 def get_target_path(target, family=None):
     if family is not None:
         fam_path = os.path.join(PATHS.periscope, 'data', 'families', family, target)
@@ -648,7 +654,7 @@ def get_target_hhblits_path(target):
 
 def get_aln_fasta(target, family):
     if family is not None:
-        fasta_file = os.path.join(get_target_path(target, family=family), 'msa.fasta')
+        fasta_file = os.path.join(get_family_path(family), 'msa.fasta')
         return fasta_file
 
     target_hhblits_path = get_target_hhblits_path(target)
