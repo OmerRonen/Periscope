@@ -11,7 +11,7 @@ from Bio.PDB.DSSP import dssp_dict_from_pdb_file
 from Bio.PDB.StructureBuilder import PDBConstructionWarning
 
 import numpy as np
-from Bio.PDB import Polypeptide
+from Bio.PDB import Polypeptide, is_aa
 from Bio.PDB.PDBParser import PDBParser
 from .constants import PATHS
 from .utils import pkl_load, get_modeller_pdb_file, get_pdb_fname, check_path, pkl_save
@@ -125,7 +125,7 @@ class Protein:
                 return False
             return r.id[0] == ' ' or r.id[0] == 'H_MSE'
 
-        residues = [r for r in self._bio_chain.get_residues() if _is_valid(r)]
+        residues = [r for r in self._bio_chain.get_residues() if is_aa(r)]
 
         def _res_number(r):
             return r.id[1]
@@ -251,7 +251,7 @@ class Protein:
 
     def get_chain_seq(self):
 
-        seq_file = os.path.join(self._target_dir, 'seq.pkl')
+        seq_file = os.path.join(self._target_dir, 'seq_aa.pkl')
         if os.path.isfile(seq_file):
             return pkl_load(seq_file)
         residues = self._get_residues()
