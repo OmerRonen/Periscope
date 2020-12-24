@@ -157,7 +157,7 @@ class DataCreator:
 
     def _get_no_target_gaps_msa(self):
 
-        msa_file = get_aln_fasta(self.target)
+        msa_file = get_aln_fasta(self.target, self._family)
 
         # msa_file = os.path.join(get_target_path(self.target), 'hhblits', self.target + '_v%s.fasta' % version)
 
