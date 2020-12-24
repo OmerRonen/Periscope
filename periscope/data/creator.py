@@ -522,8 +522,10 @@ class DataCreator:
             uniprot_id, pdb_id = _get_id(seq)
             if uniprot_id in sequences:
                 continue
-            id = uniprot_id if len(pdb_id) == 0 else pdb_id
-            s = SeqRecord(seq.seq.upper(), id=id)
+            is_pdb = len(pdb_id) != 0
+            description = 'pdb' if is_pdb else "uniprot"
+            id = pdb_id if is_pdb else uniprot_id
+            s = SeqRecord(seq.seq.upper(), id=id, description=description)
             sequences[id] = s
 
 
@@ -1078,9 +1080,14 @@ class DataCreator:
         pdb_inds_target, msa_inds_target = self._align_pdb_msa(target_sequence,
                                                                target_msa_seq,
                                                                target_pdb_indices)
+        family_mode = self._family is not None
         for homologous in msa:
-            uniprot_name = homologous
             msa_sequence = msa[homologous]
+
+            if family_mode and msa_sequence.description != 'pdb':
+                continue
+
+            uniprot_name = homologous
             aligned_structure = self._find_reference(uniprot_name,
                                                      msa_sequence,
                                                      pdb_inds_target,
