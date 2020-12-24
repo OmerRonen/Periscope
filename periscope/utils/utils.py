@@ -249,7 +249,7 @@ def check_path(path):
         os.makedirs(path)
 
 
-def run_clustalo(sequences, fname, target=None, structures=None):
+def run_clustalo(sequences, fname, target=None, structures=None, family=None):
     SeqIO.write(sequences, fname, 'fasta')
 
     if structures is None:
@@ -257,7 +257,7 @@ def run_clustalo(sequences, fname, target=None, structures=None):
         subprocess.run(cmd, shell=True)
         return
 
-    msa_file = get_aln_fasta(target)
+    msa_file = get_aln_fasta(target, family)
     msa = read_fasta(msa_file, full=True)
 
     def _get_id(h):

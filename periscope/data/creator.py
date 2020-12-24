@@ -1466,7 +1466,7 @@ class DataCreator:
 
         sequences = [_get_record(t) for t in aln_list]
 
-        run_clustalo(sequences, fname, self.target, profile)
+        run_clustalo(sequences, fname, self.target, profile, self._family)
         self._filter_aln(fname)
         aln = read_fasta(fname, True)
         return aln
@@ -1540,7 +1540,7 @@ class DataCreator:
         aln_list = [t for t in aln_list if Protein(t[0:4], t[4]).str_seq is not None]
 
         sequences = [_get_record(t) for t in aln_list]
-        run_clustalo(sequences, fname, self.target, structures)
+        run_clustalo(sequences, fname, self.target, structures, self._family)
 
         aln = read_fasta(fname, True)
 
