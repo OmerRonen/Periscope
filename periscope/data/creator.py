@@ -44,13 +44,14 @@ class DataCreator:
     _PHYLO_VERSION = 5
     _THRESHOLD = 8
 
-    def __init__(self, target, n_refs=N_REFS):
+    def __init__(self, target, n_refs=N_REFS, family=None):
         self.protein = Protein(target[0:4], target[4])
         try:
             self._is_broken = not hasattr(self.protein, 'sequence')
         except Exception:
             self._is_broken = True
-        self._msa_data_path = os.path.join(get_target_path(target), 'features')
+        self._family = family
+        self._msa_data_path = os.path.join(get_target_path(target, family), 'features')
         check_path(self._msa_data_path)
         self.target = target
         self._n_refs = n_refs
@@ -165,8 +166,8 @@ class DataCreator:
 
         # full_alphabet = Gapped(ExtendedIUPACProtein())
         # fasta_seqs = [f.upper() for f in list(SeqIO.parse(msa_file, "fasta", alphabet=full_alphabet))]
-        fasta_seqs = [f.upper() for f in list(SeqIO.parse(msa_file, "fasta"))]
-        target_seq_full = fasta_seqs[0].seq
+        fasta_seqs = self._parse_msa()
+        target_seq_full = fasta_seqs[self.target]
         target_seq_no_gap_inds = [i for i in range(len(target_seq_full)) if target_seq_full[i] != '-']
         target_seq = ''.join(target_seq_full[i] for i in target_seq_no_gap_inds)
 
@@ -175,7 +176,7 @@ class DataCreator:
             return seq
 
         assert target_seq == "".join(self.protein.sequence)
-        fasta_seqs_short = [_slice_seq(s, target_seq_no_gap_inds) for s in fasta_seqs]
+        fasta_seqs_short = [_slice_seq(s, target_seq_no_gap_inds) for s in fasta_seqs.values()]
         return fasta_seqs_short
 
     def _get_cover(self, ref):
@@ -499,7 +500,29 @@ class DataCreator:
         reformat = ['reformat.pl', output_reformat1, output_reformat2]
         subprocess.run(reformat)
 
-    def _parse_msa(self):
+    def _parse_custom_msa(self):
+
+        msa_file = get_aln_fasta(self.target, self._family)
+
+        def _get_id(seq):
+            des = seq.description.split('|')
+            if len(des) == 3:
+                return des[1]
+            pdbs = des[3].split("+")
+            pdb = pdbs[0].split('_')[0].lower() + pdbs[0].split('_')[1]
+
+            return pdb
+
+        fasta_seqs = list(SeqIO.parse(msa_file, "fasta"))
+        sequences = {
+            _get_id(seq): SeqRecord(seq.seq.upper(),
+                                    id=_get_id(seq).split("_")[0])
+            for seq in fasta_seqs
+        }
+
+        return sequences
+
+    def _parse_msa_default(self):
         """Parses the msa data
 
         Returns:
@@ -529,7 +552,6 @@ class DataCreator:
                 return seq.id.split('|')[1]
             return seq.id.split('_')[1]
 
-
         # fasta_seqs = list(SeqIO.parse(msa_file, "fasta", alphabet=Gapped(ExtendedIUPACProtein())))
         fasta_seqs = list(SeqIO.parse(msa_file, "fasta"))
         sequences = {
@@ -539,6 +561,11 @@ class DataCreator:
         }
 
         return sequences
+
+    def _parse_msa(self):
+        if self._family is not None:
+            return self._parse_custom_msa()
+        return self._parse_msa_default()
 
     def _get_metadata(self):
         metadata_fname = os.path.join(self._msa_data_path, 'meta_data.pkl')
@@ -1288,7 +1315,7 @@ class DataCreator:
     @property
     def ccmpred(self):
 
-        ccmpred_mat_file = get_target_ccmpred_file(self.target)
+        ccmpred_mat_file = get_target_ccmpred_file(self.target, self._family)
         if os.path.isfile(ccmpred_mat_file):
             ccmpred_mat = np.loadtxt(ccmpred_mat_file)
             if ccmpred_mat.shape[0] != len(self.protein.str_seq):
@@ -1400,7 +1427,7 @@ class DataCreator:
 
     def _get_refs_aln(self):
 
-        clustalo_path = os.path.join(get_target_path(self.target), 'clustalo_new')
+        clustalo_path = os.path.join(get_target_path(self.target, self._family), 'clustalo_new')
         check_path(clustalo_path)
         fname = os.path.join(clustalo_path, f'aln_refs.fasta')
 

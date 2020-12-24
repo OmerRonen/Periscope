@@ -40,7 +40,7 @@ def bin_array(distance_matrix, n_bins, threshold=8, upper_lim=24):
     no_contact_bins = [threshold + (bin_step * i) for i in range(1, half_bins)]
     all_bins = contact_bins + no_contact_bins
     bins = [-1.1] + all_bins
-    bins_shifted = [0] + all_bins[1: ] + [np.infty]
+    bins_shifted = [0] + all_bins[1:] + [np.infty]
 
     binned_distance_matrix = np.array(np.logical_and(
         distance_matrix[..., None] >= np.array(bins),
@@ -602,8 +602,13 @@ def get_fasta_fname(target, full):
     return os.path.join(get_target_path(target), f'{target}.fasta')
 
 
-def get_target_path(target, new=False):
-    f_name = target + '_new' if new else target
+def get_target_path(target, family=None):
+    if family is not None:
+        fam_path = os.path.join(PATHS.periscope, 'data', 'families', family, target)
+        check_path(fam_path)
+        return fam_path
+
+    f_name = target
     t_path = os.path.join(PATHS.proteins, target[1:3], f_name)
     check_path(t_path)
     return t_path
@@ -624,8 +629,8 @@ def get_target_scores_file(target):
     return os.path.join(get_target_path(target), "scores.pkl")
 
 
-def get_target_ccmpred_file(target):
-    ccmpred_path = os.path.join(get_target_path(target), 'ccmpred_new')
+def get_target_ccmpred_file(target, family=None):
+    ccmpred_path = os.path.join(get_target_path(target, family), 'ccmpred_new')
     check_path(ccmpred_path)
 
     ccmpred_file = os.path.join(ccmpred_path, f'{target}.mat')
@@ -641,7 +646,11 @@ def get_target_hhblits_path(target):
     return os.path.join(get_target_path(target), 'hhblits_new')
 
 
-def get_aln_fasta(target):
+def get_aln_fasta(target, family):
+    if family is not None:
+        fasta_file = os.path.join(get_target_path(target, family=family), 'msa.fasta')
+        return fasta_file
+
     target_hhblits_path = get_target_hhblits_path(target)
     fasta_file = os.path.join(target_hhblits_path, f'{target}_v2.fasta')
     return fasta_file
