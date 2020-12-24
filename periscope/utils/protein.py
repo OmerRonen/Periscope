@@ -26,7 +26,7 @@ class Protein:
     NAN_VALUE = -1
     _THRESHOLD = 8
 
-    def __init__(self, protein, chain, pdb_path=PATHS.pdb, modeller_n_struc=1, version=5, pdb_fname=None):
+    def __init__(self, protein, chain, pdb_path=PATHS.pdb, modeller_n_struc=1, version=6, pdb_fname=None):
         self.VERSION = version
         self.protein = protein if type(protein) == str else protein.decode(
             "utf-8")

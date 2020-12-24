@@ -1066,10 +1066,14 @@ class DataCreator:
     def _find_all_references(self, msa):
         # finds and saves all known strctures in an alignment
 
-        target_msa_seq = "".join(msa[self.target].seq)
+        msa_seq = list(msa[self.target].seq)
+        target_msa_seq_no_gaps = ''.join([s for s in msa_seq if s != '-'])
+
+        target_msa_seq = "".join(msa_seq)
 
         target_sequence = ''.join(self.protein.sequence)
-        target_pdb_indices = list(range(0, len(target_sequence)))
+        assert target_msa_seq_no_gaps in target_sequence
+        target_pdb_indices = list(range(0, len(target_msa_seq_no_gaps)))
 
         pdb_inds_target, msa_inds_target = self._align_pdb_msa(target_sequence,
                                                                target_msa_seq,
@@ -1178,7 +1182,7 @@ class DataCreator:
         reference_aligned_dm[:] = np.nan
         try:
             reference_protein = Protein(protein, chain)
-            reference_sequence_full = reference_protein.modeller_str_seq
+            reference_sequence_full = reference_protein.str_seq
         except Exception:
             return
 
