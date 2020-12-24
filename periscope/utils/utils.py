@@ -652,7 +652,7 @@ def get_target_hhblits_path(target):
     return os.path.join(get_target_path(target), 'hhblits_new')
 
 
-def get_aln_fasta(target, family):
+def get_aln_fasta(target, family=None):
     if family is not None:
         fasta_file = os.path.join(get_family_path(family), 'msa.fasta')
         return fasta_file
