@@ -57,7 +57,7 @@ class DataCreator:
         self._n_refs = n_refs
         self.metadata = self._get_metadata()
         self.has_refs = self.sorted_structures is not None
-        # self.has_refs_new = len(self._get_refs_aln()) > 1
+        self.has_refs_new = len(self._get_refs_aln()) > 1
         self.refactored = self.metadata['refactored']
         self.recreated = self.metadata.get('new_data', False)
         if not os.path.isfile(self.fasta_fname):
@@ -506,6 +506,8 @@ class DataCreator:
 
         def _get_id(seq):
             des = seq.description.split('|')
+            return des[1]
+
             if len(des) == 3:
                 return des[1]
             pdbs = des[3].split("+")
