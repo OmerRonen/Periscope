@@ -962,7 +962,7 @@ class DataCreator:
 
     @staticmethod
     def _align_pdb_msa(pdb_sequence, msa_sequence, pdb_indices, one_d=False):
-        """Get alined indices if exists
+        """Get aligned indices if exists
 
         Args:
             pdb_sequence (str): Amino acid sequence
@@ -1079,10 +1079,12 @@ class DataCreator:
                                                                target_msa_seq,
                                                                target_pdb_indices)
         for homologous in msa:
-            aligned_structure = self._find_reference(uniprot_name=homologous,
-                                                     msa_sequence=msa[homologous],
-                                                     pdb_inds_target=pdb_inds_target,
-                                                     msa_inds_target=msa_inds_target)
+            uniprot_name = homologous
+            msa_sequence = msa[homologous]
+            aligned_structure = self._find_reference(uniprot_name,
+                                                     msa_sequence,
+                                                     pdb_inds_target,
+                                                     msa_inds_target)
 
             if aligned_structure is None:
                 continue
@@ -1183,6 +1185,8 @@ class DataCreator:
         try:
             reference_protein = Protein(protein, chain)
             reference_sequence_full = reference_protein.str_seq
+            if reference_sequence_full is None:
+                return
         except Exception:
             return
 
