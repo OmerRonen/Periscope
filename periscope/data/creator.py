@@ -524,7 +524,7 @@ class DataCreator:
                 continue
             id = uniprot_id if len(pdb_id) == 0 else pdb_id
             s = SeqRecord(seq.seq.upper(), id=id)
-            sequences[uniprot_id] = s
+            sequences[id] = s
 
 
         return sequences
