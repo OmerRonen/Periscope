@@ -506,21 +506,26 @@ class DataCreator:
 
         def _get_id(seq):
             des = seq.description.split('|')
-            return des[1]
+            uniprot_id = des[1]
 
             if len(des) == 3:
-                return des[1]
+                pdb = ""
+                return uniprot_id, pdb
             pdbs = des[3].split("+")
             pdb = pdbs[0].split('_')[0].lower() + pdbs[0].split('_')[1]
 
-            return pdb
+            return uniprot_id, pdb
 
         fasta_seqs = list(SeqIO.parse(msa_file, "fasta"))
-        sequences = {
-            _get_id(seq): SeqRecord(seq.seq.upper(),
-                                    id=_get_id(seq).split("_")[0])
-            for seq in fasta_seqs
-        }
+        sequences ={}
+        for seq in fasta_seqs:
+            uniprot_id, pdb_id = _get_id(seq)
+            if uniprot_id in sequences:
+                continue
+            id = uniprot_id if len(pdb_id) == 0 else pdb_id
+            s = SeqRecord(seq.seq.upper(), id=id)
+            sequences[uniprot_id] = s
+
 
         return sequences
 
