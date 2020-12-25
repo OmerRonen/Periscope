@@ -512,6 +512,8 @@ class DataCreator:
                 pdb = ""
                 return uniprot_id, pdb
             pdbs = des[3].split("+")
+            if self.target in pdbs:
+                return None, None
             pdb = pdbs[0].split('_')[0].lower() + pdbs[0].split('_')[1]
 
             return uniprot_id, pdb
@@ -520,7 +522,7 @@ class DataCreator:
         sequences ={}
         for seq in fasta_seqs:
             uniprot_id, pdb_id = _get_id(seq)
-            if uniprot_id in sequences:
+            if uniprot_id in sequences or uniprot_id is None:
                 continue
             is_pdb = len(pdb_id) != 0
             description = 'pdb' if is_pdb else "uniprot"
