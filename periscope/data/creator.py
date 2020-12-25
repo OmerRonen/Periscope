@@ -524,10 +524,9 @@ class DataCreator:
             uniprot_id, pdb_id = _get_id(seq)
             if uniprot_id in sequences or uniprot_id is None:
                 continue
-            is_pdb = len(pdb_id) != 0
-            description = 'pdb' if is_pdb else "uniprot"
-            id = pdb_id if is_pdb else uniprot_id
-            s = SeqRecord(seq.seq.upper(), id=id, description=description)
+            is_target = pdb_id == self.target
+            id = pdb_id if is_target else uniprot_id
+            s = SeqRecord(seq.seq.upper(), id=id)
             sequences[id] = s
 
 
