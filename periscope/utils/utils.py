@@ -267,10 +267,14 @@ def run_clustalo(sequences, fname, target=None, structures=None, family=None):
             return h.id.split('|')[1]
         return h.id.split('_')[1]
 
-    msa_short = [msa[0]] + [h for h in msa if _get_id(h) in structures]
+    msa_structures = [msa[0]] + [h for h in msa if _get_id(h) in structures]
     valid_inds = np.array(list(msa[0].seq)) != '-'
-    for h in msa_short:
-        h.seq = Seq("".join(np.array(list(h.seq))[valid_inds]))
+    msa_short = []
+    for h in msa_structures:
+        if len(h.seq) != len(msa_structures[0].seq): # we need the profile to be aligned
+            continue
+        msa_short.append(SeqIO.SeqRecord(Seq("".join(np.array(list(h.seq))[valid_inds])),
+                                         id=h.id, name=h.name, description=h.description))
 
     with tempfile.NamedTemporaryFile(suffix='.fasta') as f:
 
