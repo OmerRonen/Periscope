@@ -335,6 +335,7 @@ class Aligner:
         filtered_msa_sorted = [filtered_msa[ind] for ind in arg_sort]
 
         return filtered_msa_sorted
+
     @property
     def templates_distance_tensor(self):
 
@@ -343,6 +344,7 @@ class Aligner:
         inds_target = np.where(np.array(list(aln[0].seq)) != '-')[0]
         dms_target = _slice_rows_cols(inds_target, dms)
         return dms_target
+
     @property
     def templates_sequence_tensor(self):
 
@@ -357,6 +359,7 @@ class Aligner:
         numeric_msa_target = numeric_msa[..., inds_target]
 
         return _one_hot_msa(numeric_msa_target).transpose([1, 2, 0])
+
     @property
     def templates_ss_acc_tensor(self):
 
@@ -365,6 +368,7 @@ class Aligner:
         inds_target = np.where(np.array(list(aln[0].seq)) != '-')[0]
         ss_acc_target = _slice_rows(inds_target, ss_acc)
         return ss_acc_target
+
     @property
     def templates_ss_acc_seq_tensor(self):
         return np.concatenate([self.templates_sequence_tensor,

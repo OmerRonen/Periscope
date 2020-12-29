@@ -619,8 +619,8 @@ class DataCreator:
         fasta_seqs = list(SeqIO.parse(fasta_file, "fasta"))
         if self._family is not None or len(fasta_seqs) > 10000:
 
-            sub_msa = list(np.random.choice(fasta_seqs, 10000,
-                                            p=weights(fasta_seqs)))
+            sub_msa = fasta_seqs[0:10000]
+            #sub_msa = list(np.random.choice(fasta_seqs, 10000,p=weights(fasta_seqs)))
             msa_full = self._parse_msa()
             sub_msa = [msa_full[self.target]] + sub_msa
             with tempfile.NamedTemporaryFile(suffix='.fasta') as fasta_tmp:
