@@ -51,11 +51,11 @@ class DataCreator:
         except Exception:
             self._is_broken = True
         self._family = family
-        if self._family is not None:
-            self.target_seq_msa = np.array(list(self._parse_msa()[self.target]))
         self._msa_data_path = os.path.join(get_target_path(target, family), 'features')
         check_path(self._msa_data_path)
         self.target = target
+        if self._family is not None:
+            self.target_seq_msa = np.array(list(self._parse_msa()[self.target]))
         self._n_refs = n_refs
         self.metadata = self._get_metadata()
         self.has_refs = self.sorted_structures is not None
