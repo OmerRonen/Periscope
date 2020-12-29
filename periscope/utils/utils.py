@@ -673,7 +673,10 @@ def get_clustalo_aln(target, n_refs=N_REFS):
     return os.path.join(clustalo_path, f'aln_r_{n_refs}.fasta')
 
 
-def get_a3m_fname(target):
+def get_a3m_fname(target, family=None):
+    if family is not None:
+        fasta_file = os.path.join(get_family_path(family), 'msa.a3m')
+        return fasta_file
     target_hhblits_path = get_target_hhblits_path(target)
     a3m_file = os.path.join(target_hhblits_path, f'{target}.a3m')
     return a3m_file

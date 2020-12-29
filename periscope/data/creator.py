@@ -14,6 +14,7 @@ from Bio import SeqIO, pairwise2
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
+from .aligner import _get_id, _get_id_family
 from .pssm import compute_PWM
 from ..utils.protein import Protein
 from ..utils.constants import PATHS, DATASETS, AMINO_ACID_STATS, PROTEIN_BOW_DIM, SEQ_ID_THRES, N_REFS
@@ -665,19 +666,37 @@ class DataCreator:
         return bow_msa
 
     def _save_scores(self):
-        a3m_file = get_a3m_fname(self.target)
+        a3m_file = get_a3m_fname(self.target, self._family)
         if not os.path.isfile(a3m_file):
             self._run_hhblits()
 
-        scores = compute_PWM(a3m_file)
-        scores_file = get_target_scores_file(self.target)
+        def weights(msa):
+            return [1/len(msa)] * len(msa)
+
+        if self._family is not None:
+            fasta_file = get_aln_fasta(self.target, self._family)
+            fasta_seqs = list(SeqIO.parse(fasta_file, "fasta"))
+
+            sub_msa = list(np.random.choice(fasta_seqs, 10000,
+                          p=weights(fasta_seqs)))
+            msa_full = self._parse_msa()
+            sub_msa = [msa_full[self.target]] + sub_msa
+            with tempfile.NamedTemporaryFile(suffix='.fasta') as fasta_tmp:
+                write_fasta(sub_msa, fasta_tmp.name)
+                with tempfile.NamedTemporaryFile(suffix=".a3m") as a3m_tmp:
+
+                    subprocess.run(f'reformat.pl {fasta_tmp.name} {a3m_tmp.name}', shell=True)
+                    scores = compute_PWM(a3m_tmp.name)
+        else:
+            scores = compute_PWM(a3m_file)
+        scores_file = get_target_scores_file(self.target, self._family)
         pkl_save(data=scores, filename=scores_file)
         cmd = f"chgrp prscope {a3m_file}"
         subprocess.call(cmd, shell=True)
 
     @property
     def scores(self):
-        scores_file = get_target_scores_file(self.target)
+        scores_file = get_target_scores_file(self.target, self._family)
 
         if not os.path.isfile(scores_file):
             self._save_scores()
