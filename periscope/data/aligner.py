@@ -7,12 +7,11 @@ from Bio import pairwise2, SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from .creator import SIFTS_MAPPING
 from ..utils.constants import PROTEIN_BOW_DIM
 from ..utils.protein import Protein
 from ..utils.utils import (get_family_path, compute_structures_identity_matrix,
                            get_aln_fasta, get_target_path, pkl_load,
-                           pkl_save, check_path, run_clustalo, read_fasta)
+                           pkl_save, check_path, run_clustalo, read_fasta, create_sifts_mapping)
 
 aa = list('-ACDEFGHIKLMNPQRSTVWYX')
 aa_dict = {aa[i]: i for i in range(len(aa))}
@@ -21,6 +20,7 @@ aa_dict['B'] = 0
 aa_dict['U'] = 0
 aa_dict['O'] = 0
 
+SIFTS_MAPPING = create_sifts_mapping()
 
 
 def _slice_rows_cols(inds, arr):
