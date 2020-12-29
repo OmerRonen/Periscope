@@ -615,9 +615,9 @@ class DataCreator:
         def weights(msa):
             return [1 / len(msa)] * len(msa)
 
-        if self._family is not None:
-            fasta_file = get_aln_fasta(self.target, self._family)
-            fasta_seqs = list(SeqIO.parse(fasta_file, "fasta"))
+        fasta_file = get_aln_fasta(self.target, self._family)
+        fasta_seqs = list(SeqIO.parse(fasta_file, "fasta"))
+        if self._family is not None or len(fasta_seqs) > 10000:
 
             sub_msa = list(np.random.choice(fasta_seqs, 10000,
                                             p=weights(fasta_seqs)))
@@ -991,7 +991,7 @@ class DataCreator:
 
             target_msa_seq_no_gaps = ''.join(target_seq_arr[inds])
             sub_ind = self.protein.str_seq.find(target_msa_seq_no_gaps)
-            rng = list(range(sub_ind, sub_ind+len(target_msa_seq_no_gaps)))
+            rng = list(range(sub_ind, sub_ind + len(target_msa_seq_no_gaps)))
             l = len(self.protein.str_seq)
             ccmpred_mat = np.zeros(shape=(l, l))
             idx = np.array(rng)
@@ -1161,7 +1161,6 @@ class DataCreator:
         ref = np.array(np.nanmin(dms, 2) < self._THRESHOLD, dtype=np.int)
         return self._replace_nas(ref)
 
-
     @property
     def n_refs_test(self):
         self._get_clustalo_msa()
@@ -1222,7 +1221,6 @@ class DataCreator:
         if n_strucs > self._n_refs:
             arr_out = arr[..., (n_strucs - self._n_refs): n_strucs]
         return self._replace_nas(arr_out)
-
 
     @property
     def seq_target(self):
