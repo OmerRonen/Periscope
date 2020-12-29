@@ -655,6 +655,7 @@ class DataCreator:
         score_mat = np.zeros(shape=(l, score.shape[-1]))
         idx = np.array(rng)
         score_mat[idx, :] = score
+        return score_mat
 
     @property
     def pwm_w(self):
