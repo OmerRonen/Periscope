@@ -311,7 +311,7 @@ class Aligner:
         for h in aln:
             if h.id == self.target:
                 continue
-            h.description = ref_map_inv[h.id]
+            h.description = ref_map_inv.get(h.id, h.id)
         return aln
 
     def get_structures_msa(self):

@@ -33,7 +33,7 @@ def main():
     outfolder_full = os.path.join(PATHS.periscope, outfolder)
     check_path(outfolder_full)
     model = get_model_by_name(model_name)
-    predictions = get_model_predictions(model, proteins=proteins)
+    predictions = get_model_predictions(model, proteins=proteins, family='trypsin')
     logits = predictions['logits']
     weights = predictions['weights']
 
