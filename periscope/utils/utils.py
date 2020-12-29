@@ -635,8 +635,8 @@ def get_predicted_pdb(model, target, sswt=5, selectrr='2.0L'):
     return predicted_pdb
 
 
-def get_target_scores_file(target):
-    return os.path.join(get_target_path(target), "scores.pkl")
+def get_target_scores_file(target, family=None):
+    return os.path.join(get_target_path(target, family), "scores.pkl")
 
 
 def get_target_ccmpred_file(target, family=None):
