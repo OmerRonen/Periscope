@@ -39,6 +39,7 @@ def main():
 
     for protein in proteins:
         outfolder_p = os.path.join(outfolder_full, protein)
+        check_path(outfolder_p)
         sequence = list(Protein(protein[0:4], protein[4]).str_seq)
         logits_df = pd.DataFrame(np.squeeze(logits[protein]), columns=sequence, index=sequence)
         logits_df.to_csv(os.path.join(outfolder_p, 'logits.csv'))
