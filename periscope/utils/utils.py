@@ -643,8 +643,8 @@ def get_target_ccmpred_file(target, family=None):
     pth = get_target_path(target) if family is None else get_family_path(family)
     ccmpred_path = os.path.join(pth , 'ccmpred_new')
     check_path(ccmpred_path)
-
-    ccmpred_file = os.path.join(ccmpred_path, f'{target}.mat')
+    mat_name = f'{target}.mat' if family is None else f'{family}.mat'
+    ccmpred_file = os.path.join(ccmpred_path, mat_name)
 
     return ccmpred_file
 
