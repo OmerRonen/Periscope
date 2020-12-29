@@ -14,7 +14,7 @@ from Bio import SeqIO, pairwise2
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from .aligner import _get_id, _get_id_family
+from .aligner import _get_id, _get_id_family, Aligner
 from .pssm import compute_PWM
 from ..utils.protein import Protein
 from ..utils.constants import PATHS, DATASETS, AMINO_ACID_STATS, PROTEIN_BOW_DIM, SEQ_ID_THRES, N_REFS
@@ -57,56 +57,15 @@ class DataCreator:
         self._n_refs = n_refs
         self.metadata = self._get_metadata()
         self.has_refs = self.sorted_structures is not None
-        self.has_refs_new = len(self._get_refs_aln()) > 1
         self.refactored = self.metadata['refactored']
         self.recreated = self.metadata.get('new_data', False)
         if not os.path.isfile(self.fasta_fname):
             self._write_fasta()
+        self.aligner = Aligner(self.target, self._family)
 
     @property
     def msa_length(self):
         return len(self._parse_msa())
-
-    def generate_data(self):
-        if self._is_broken or self.recreated:
-            return
-
-        self._run_hhblits()
-        msa = self._parse_msa()
-        # self.evfold
-        self.ccmpred
-        self._find_all_references(msa)
-        LOGGER.info('Generating phylo dm')
-        self._get_phylo_structures_mat()
-        LOGGER.info('Sorting structures')
-        self._get_sorted_structures()
-        LOGGER.info('Saving metadata')
-        self.metadata['new_data'] = True
-        self._save_metadata()
-
-    def recreate_data(self):
-
-        if not self.metadata['refactored']:
-            LOGGER.info('Cleaning folder')
-            self._clean_target_folder()
-            LOGGER.info(f'Finding references for {self.target}')
-            self._find_all_references(self._parse_msa())
-            LOGGER.info('Generating phylo dm')
-            self._get_phylo_structures_mat()
-            LOGGER.info('Sorting structures')
-            self._get_sorted_structures()
-            LOGGER.info('Saving metadata')
-            self.metadata['refactored'] = True
-            self._save_metadata()
-
-    def recreate_data_after_find(self):
-        LOGGER.info('Generating phylo dm')
-        self._get_phylo_structures_mat()
-        LOGGER.info('Sorting structures')
-        self._get_sorted_structures()
-        LOGGER.info('Saving metadata')
-        self.metadata['refactored'] = True
-        self._save_metadata()
 
     @property
     def sorted_structures(self):
@@ -158,13 +117,9 @@ class DataCreator:
 
         msa_file = get_aln_fasta(self.target, self._family)
 
-        # msa_file = os.path.join(get_target_path(self.target), 'hhblits', self.target + '_v%s.fasta' % version)
-
         if not os.path.isfile(msa_file):
             self._run_hhblits()
 
-        # full_alphabet = Gapped(ExtendedIUPACProtein())
-        # fasta_seqs = [f.upper() for f in list(SeqIO.parse(msa_file, "fasta", alphabet=full_alphabet))]
         fasta_seqs = self._parse_msa()
         if self._family is not None:
             return list(fasta_seqs.values())
@@ -176,7 +131,8 @@ class DataCreator:
             seq.seq = Seq(''.join(seq.seq[i] for i in inds))
             return seq
 
-        # assert target_seq == "".join(self.protein.sequence)
+        assert target_seq == self.protein.str_seq
+
         fasta_seqs_short = [_slice_seq(s, target_seq_no_gap_inds) for s in fasta_seqs.values()]
         return fasta_seqs_short
 
@@ -374,6 +330,10 @@ class DataCreator:
     def _run_ccmpred(self):
 
         msa = self._get_no_target_gaps_msa()
+        l = len(self._parse_msa()[self.target])
+        msa = [m for m in msa if len(m) == l]
+        if len(msa) > 32000:
+            msa = list(np.random.choice(msa, 32000))
 
         with tempfile.NamedTemporaryFile() as tmp:
             write_fasta(msa, tmp.name)
@@ -408,25 +368,6 @@ class DataCreator:
         cmd = f'plmc -o {file_params} -c {file_ec} -le 16.0 -m {500} -lh 0.01  -g -f {self.target} {file_msa}'
 
         subprocess.call(cmd, shell=True)
-
-    def _reformat_old_file(self):
-        version = self._MSA_VERSION
-
-        old_a2m_file = os.path.join(PATHS.msa, 'hhblits', 'a2m', f'{self.target}.a2m')
-        if not os.path.isfile(old_a2m_file):
-            return False
-        target_hhblits_path = get_target_hhblits_path(self.target)
-        check_path(target_hhblits_path)
-        fasta_file = os.path.join(target_hhblits_path, self.target + '_v%s.fasta' % version)
-
-        a3m_file = os.path.join(target_hhblits_path, self.target + '.a3m')
-
-        reformat = ['reformat.pl', old_a2m_file, a3m_file]
-        subprocess.run(reformat)
-
-        reformat = ['reformat.pl', old_a2m_file, fasta_file]
-        subprocess.run(reformat)
-        return True
 
     @property
     def fasta_fname(self):
@@ -520,7 +461,7 @@ class DataCreator:
             return uniprot_id, pdb
 
         fasta_seqs = list(SeqIO.parse(msa_file, "fasta"))
-        sequences ={}
+        sequences = {}
         for seq in fasta_seqs:
             uniprot_id, pdb_id = _get_id(seq)
             if uniprot_id in sequences or uniprot_id is None:
@@ -529,7 +470,6 @@ class DataCreator:
             id = pdb_id if is_target else uniprot_id
             s = SeqRecord(seq.seq.upper(), id=id)
             sequences[id] = s
-
 
         return sequences
 
@@ -671,20 +611,19 @@ class DataCreator:
             self._run_hhblits()
 
         def weights(msa):
-            return [1/len(msa)] * len(msa)
+            return [1 / len(msa)] * len(msa)
 
         if self._family is not None:
             fasta_file = get_aln_fasta(self.target, self._family)
             fasta_seqs = list(SeqIO.parse(fasta_file, "fasta"))
 
             sub_msa = list(np.random.choice(fasta_seqs, 10000,
-                          p=weights(fasta_seqs)))
+                                            p=weights(fasta_seqs)))
             msa_full = self._parse_msa()
             sub_msa = [msa_full[self.target]] + sub_msa
             with tempfile.NamedTemporaryFile(suffix='.fasta') as fasta_tmp:
                 write_fasta(sub_msa, fasta_tmp.name)
                 with tempfile.NamedTemporaryFile(suffix=".a3m") as a3m_tmp:
-
                     subprocess.run(f'reformat.pl {fasta_tmp.name} {a3m_tmp.name}', shell=True)
                     scores = compute_PWM(a3m_tmp.name)
         else:
@@ -778,7 +717,6 @@ class DataCreator:
 
         return numeric_msa
 
-
     def _generate_seq_refs_full_test(self):
 
         refs = self._get_k_closest_references()
@@ -850,7 +788,6 @@ class DataCreator:
         structure = sorted_structures.index[0]
         assert structure != self.protein.target
         return structure
-
 
     @staticmethod
     def _align_pdb_msa(pdb_sequence, msa_sequence, pdb_indices, one_d=False):
@@ -955,138 +892,6 @@ class DataCreator:
             os.path.join(self._msa_data_path, f'{homologous}_mean_v{version}.pkl')
         return os.path.join(self._msa_data_path, f'{homologous}_structure_v{version}.pkl')
 
-    def _find_all_references(self, msa):
-        # finds and saves all known strctures in an alignment
-
-        msa_seq = list(msa[self.target].seq)
-        target_msa_seq_no_gaps = ''.join([s for s in msa_seq if s != '-'])
-
-        target_msa_seq = "".join(msa_seq)
-
-        target_sequence = ''.join(self.protein.sequence)
-        assert target_msa_seq_no_gaps in target_sequence
-        target_pdb_indices = list(range(0, len(target_msa_seq_no_gaps)))
-
-        pdb_inds_target, msa_inds_target = self._align_pdb_msa(target_sequence,
-                                                               target_msa_seq,
-                                                               target_pdb_indices)
-        family_mode = self._family is not None
-        for homologous in msa:
-            msa_sequence = msa[homologous]
-
-            if family_mode and msa_sequence.description != 'pdb':
-                continue
-
-            uniprot_name = homologous
-            aligned_structure = self._find_reference(uniprot_name,
-                                                     msa_sequence,
-                                                     pdb_inds_target,
-                                                     msa_inds_target)
-
-            if aligned_structure is None:
-                continue
-
-            pkl_save(self._get_structure_file(homologous, self._STRUCTURES_VERSION), aligned_structure['dm'])
-            pkl_save(self._get_structure_file(homologous, self._STRUCTURES_VERSION, True), aligned_structure['dm_mean'])
-            self.metadata['references_map'][homologous] = aligned_structure['map']
-
-    def _find_reference(self, uniprot_name, msa_sequence, pdb_inds_target, msa_inds_target):
-
-        has_mapping = uniprot_name in SIFTS_MAPPING
-        if has_mapping:
-            LOGGER.info(SIFTS_MAPPING[uniprot_name])
-        is_target = uniprot_name == self.target
-
-        if is_target:
-            return {'dm': self.protein.dm, 'dm_mean': self.protein.dm, 'map': None}
-
-        if not has_mapping and not is_target:
-            return None
-
-        msa_sequence = str(msa_sequence.seq)
-
-        potential_structures = SIFTS_MAPPING[uniprot_name]
-
-        aligned_potential_structures = self._align_potential_structures(potential_structures, msa_sequence,
-                                                                        pdb_inds_target, msa_inds_target)
-
-        if aligned_potential_structures is None:
-            return
-
-        dms = aligned_potential_structures['dms']
-
-        dm = dms[0]
-        dm_mean = np.nanmean(np.stack(dms, axis=2), axis=2)
-
-        return {'dm': dm, 'dm_mean': dm_mean, "map": aligned_potential_structures['ref_map']}
-
-    def _find_aligned_dm(self, protein_map, msa_sequence, pdb_inds_target, msa_inds_target):
-        # this function inspects a single protein map and returns an aligned distance matrix if possible
-
-        protein = protein_map[0][0:4]
-        chain = protein_map[0][4]
-
-        if protein == self.target[0:4]:
-            return
-
-        msa_distance_matrix = np.empty((len(msa_sequence), len(msa_sequence)))
-        msa_distance_matrix[:] = np.nan
-
-        reference_aligned_dm = np.empty((len(self.protein.sequence), len(self.protein.sequence)))
-        reference_aligned_dm[:] = np.nan
-        try:
-            reference_protein = Protein(protein, chain)
-            reference_sequence_full = reference_protein.str_seq
-            if reference_sequence_full is None:
-                return
-        except Exception:
-            return
-
-        start_ind_pdb = min(protein_map[1]['pdb'][0] - 1,
-                            len(reference_sequence_full))
-        end_ind_pdb = min(protein_map[1]['pdb'][1] - 1,
-                          len(reference_sequence_full))
-
-        reference_sequence = reference_sequence_full[start_ind_pdb:end_ind_pdb]
-
-        pdb_inds, msa_inds = self._align_pdb_msa(pdb_sequence=reference_sequence,
-                                                 msa_sequence=msa_sequence.upper(),
-                                                 pdb_indices=list(range(start_ind_pdb, end_ind_pdb)))
-
-        if pdb_inds is None:
-            return
-
-        msa_distance_matrix[msa_inds[0], msa_inds[1]] = reference_protein.dm[pdb_inds[0], pdb_inds[1]]
-
-        reference_aligned_dm[pdb_inds_target[0],
-                             pdb_inds_target[1]] = msa_distance_matrix[msa_inds_target[0],
-                                                                       msa_inds_target[1]]
-        reference_aligned_dm[pdb_inds_target[1],
-                             pdb_inds_target[0]] = msa_distance_matrix[msa_inds_target[0],
-                                                                       msa_inds_target[1]]
-
-        return {'dm': reference_aligned_dm, 'reference': (reference_protein.target, (start_ind_pdb, end_ind_pdb))}
-
-    def _align_potential_structures(self, potential_structures, msa_sequence, pdb_inds_target,
-                                    msa_inds_target):
-
-        aligned_dms = []
-        references_map = []
-
-        for protein_map in potential_structures:
-            map = self._find_aligned_dm(protein_map, msa_sequence, pdb_inds_target, msa_inds_target)
-
-            if map is None:
-                continue
-
-            aligned_dms.append(map['dm'])
-            references_map.append(map['reference'])
-
-        if len(aligned_dms) == 0:
-            return
-
-        return {'dms': aligned_dms, "ref_map": references_map}
-
     def get_average_modeller_dm(self, n_structures=1):
         """Returns the average cm over few modeller predicted structures
 
@@ -1158,18 +963,18 @@ class DataCreator:
     def ccmpred(self):
 
         ccmpred_mat_file = get_target_ccmpred_file(self.target, self._family)
-        if os.path.isfile(ccmpred_mat_file):
-            ccmpred_mat = np.loadtxt(ccmpred_mat_file)
-            if ccmpred_mat.shape[0] != len(self.protein.str_seq):
-                self._run_ccmpred()
-                return
-            return ccmpred_mat
+        if not os.path.isfile(ccmpred_mat_file):
+            self._run_ccmpred()
 
-        success = self._run_ccmpred()
-        if success:
-            return np.loadtxt(ccmpred_mat_file)
+        ccmpred_mat = np.loadtxt(ccmpred_mat_file)
+        if self._family:
+            target_msa_seq = self._parse_msa()[self.target]
+            inds = np.where(np.array(list(target_msa_seq)) != '-')[0]
+            row_idx = np.array(inds)
+            col_idx = np.array(inds)
+            ccmpred_mat = ccmpred_mat[row_idx[:, None], col_idx]
 
-        return
+        return ccmpred_mat
 
     @property
     def evfold(self):
@@ -1266,79 +1071,6 @@ class DataCreator:
         if os.path.isfile(dm_file):
             return pkl_load(dm_file)
         return
-
-    def _get_refs_aln(self):
-
-        clustalo_path = os.path.join(get_target_path(self.target, self._family), 'clustalo_new')
-        check_path(clustalo_path)
-        fname = os.path.join(clustalo_path, f'aln_refs.fasta')
-
-        if os.path.isfile(fname):
-            return read_fasta(fname, True)
-
-        msa = self._parse_msa()
-        if msa is None:
-            return []
-        refs = []
-        profile = []
-
-        def get_pdb_ref(h):
-            if h not in SIFTS_MAPPING or h == self.target:
-                return
-
-            pdbs = [map[0] for map in SIFTS_MAPPING[h]]
-            if self.target in pdbs:
-                return
-            return pdbs[0]
-
-        for h in msa:
-            pdb_ref = get_pdb_ref(h)
-            if pdb_ref is not None:
-                refs.append(pdb_ref)
-                profile.append(h)
-
-        def _get_record(t):
-            prot = Protein(t[0:4], t[4])
-            seq = prot.str_seq
-
-            return SeqRecord(Seq(seq), id=t, name='', description='')
-
-        aln_list = [self.target] + refs
-        aln_list = [t for t in aln_list if Protein(t[0:4], t[4]).str_seq is not None]
-
-        sequences = [_get_record(t) for t in aln_list]
-
-        run_clustalo(sequences, fname, self.target, profile, self._family)
-        self._filter_aln(fname)
-        aln = read_fasta(fname, True)
-        return aln
-
-    def _filter_aln(self, aln_fname):
-
-        aln = read_fasta(aln_fname, True)
-
-        seqs_to_filter = []
-        s_t = [s for s in aln if s.id == self.target][0]
-        target_s_arr = np.array(list(s_t.seq))
-        valid_inds = target_s_arr != '-'
-        target_s_arr_l = np.sum(valid_inds)
-
-        def _seq_id(s):
-            s_arr = np.array(list(s.seq))
-            s_arr_l = len(s_arr[np.logical_and(s_arr != '-', valid_inds)])
-
-            seq_id = np.sum(target_s_arr[valid_inds] == s_arr[valid_inds]) / min(s_arr_l, target_s_arr_l)
-            return seq_id
-
-        for s in aln:
-            if s.id == self.target:
-                continue
-
-            seq_id = _seq_id(s)
-            if seq_id > SEQ_ID_THRES:
-                seqs_to_filter.append(s.id)
-        aln = sorted([s for s in aln if s.id not in seqs_to_filter], key=_seq_id, reverse=True)
-        SeqIO.write(aln, aln_fname, 'fasta')
 
     def _get_clustalo_msa(self):
 
@@ -1441,13 +1173,6 @@ class DataCreator:
         n_strucs = len(self._aln) - 1
         return n_strucs
 
-
-    @property
-    def n_homs(self):
-
-        return len(self._parse_msa())
-
-
     def _get_reference_ss_acc(self):
         file = os.path.join(self._msa_data_path, 'k_acc_ss.pkl')
         if os.path.isfile(file):
@@ -1538,7 +1263,6 @@ class DataCreator:
         if acc_ss is None:
             return
         return np.concatenate([seqs, acc_ss], axis=1)
-
 
     @property
     def modeller_dm(self):

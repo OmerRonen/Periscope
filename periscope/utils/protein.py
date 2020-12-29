@@ -21,6 +21,9 @@ logging.basicConfig(level=logging.INFO)
 warnings.simplefilter('ignore', PDBConstructionWarning)
 path_to_dssp = os.path.join(PATHS.src, 'dssp-2.3.0/mkdssp')
 
+def _is_valid(r):
+    return is_aa(r)
+
 
 class Protein:
     NAN_VALUE = -1
@@ -118,14 +121,10 @@ class Protein:
         aa_mask = [Polypeptide.is_aa(r) for r in poly]
         return aa_mask
 
+
     def _get_residues(self):
 
-        def _is_valid(r):
-            if r.id[2] != ' ':
-                return False
-            return r.id[0] == ' ' or r.id[0] == 'H_MSE'
-
-        residues = [r for r in self._bio_chain.get_residues() if is_aa(r)]
+        residues = [r for r in self._bio_chain.get_residues() if _is_valid(r)]
 
         def _res_number(r):
             return r.id[1]
@@ -189,11 +188,6 @@ class Protein:
             dssp = self.dssp
         except Exception:
             return na_arr
-
-        def _is_valid(r):
-            if r.id[2] != ' ':
-                return False
-            return r.id[0] == ' ' or r.id[0] == 'H_MSE'
 
         accessible_surface_area = []
 
