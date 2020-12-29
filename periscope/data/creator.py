@@ -332,10 +332,11 @@ class DataCreator:
     def _run_ccmpred(self):
 
         msa = self._get_no_target_gaps_msa()
-        l = len(self._parse_msa()[self.target])
-        msa = [m for m in msa if len(m) == l]
+        if self._family:
+            l = len(self.target_seq_msa)
+            msa = [m for m in msa if len(m) == l]
         if len(msa) > 32000:
-            msa = list(np.random.choice(msa, 32000))
+            msa = msa[0:32000]
 
         with tempfile.NamedTemporaryFile() as tmp:
             write_fasta(msa, tmp.name)

@@ -167,7 +167,7 @@ def _get_record(uniprot, pdb):
 def _get_aln_ss_acc(msa_seq, pdb_id):
     pdb_ss_acc = Protein(pdb_id[0:4], pdb_id[4]).ss_acc
     ss_acc_arr = np.empty((len(msa_seq), pdb_ss_acc.shape[-1]))
-
+    ss_acc_arr[:] = np.nan
     inds_aln = np.where(np.array(list(msa_seq)) != '-')[0]
     inds_pdb = np.array(list(range(len(inds_aln))))
 
