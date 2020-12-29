@@ -166,7 +166,7 @@ class DataCreator:
         # fasta_seqs = [f.upper() for f in list(SeqIO.parse(msa_file, "fasta", alphabet=full_alphabet))]
         fasta_seqs = self._parse_msa()
         if self._family is not None:
-            return fasta_seqs
+            return list(fasta_seqs.values())
         target_seq_full = fasta_seqs[self.target]
         target_seq_no_gap_inds = [i for i in range(len(target_seq_full)) if target_seq_full[i] != '-']
         target_seq = ''.join(target_seq_full[i] for i in target_seq_no_gap_inds)
