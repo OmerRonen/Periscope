@@ -45,7 +45,7 @@ def main():
         logits_df.to_csv(os.path.join(outfolder_p, 'logits.csv'))
         pkl_save(os.path.join(outfolder_p, 'weights.pkl'), weights[protein])
 
-    upload_folder(outfolder_full, outfolder)
+    upload_folder(outfolder_full, os.path.join(outfolder,protein))
 
 
 if __name__ == '__main__':

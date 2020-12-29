@@ -66,6 +66,12 @@ class DataCreator:
             self._write_fasta()
         self.aligner = Aligner(self.target, self._family)
 
+    def generate_data(self):
+        self.ccmpred
+        self.aligner.templates_ss_acc_seq_tensor
+        self.aligner.templates_distance_tensor
+        self.pwm_w
+
     @property
     def msa_length(self):
         return len(self._parse_msa())

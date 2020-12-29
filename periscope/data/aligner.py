@@ -339,14 +339,23 @@ class Aligner:
     @property
     def templates_distance_tensor(self):
 
+        fname = os.path.join(self._msa_data_path, 'templates_distance_tensor.pkl')
+        if os.path.isfile(fname):
+            return pkl_load(fname)
+
         aln = self.get_structures_msa()
         dms = np.stack([_get_aln_dm(s.seq, s.id) for s in aln[1:]], axis=2)
         inds_target = np.where(np.array(list(aln[0].seq)) != '-')[0]
         dms_target = _slice_rows_cols(inds_target, dms)
+        pkl_save(fname, dms_target)
         return dms_target
 
     @property
     def templates_sequence_tensor(self):
+
+        fname = os.path.join(self._msa_data_path, 'templates_sequence_tensor.pkl')
+        if os.path.isfile(fname):
+            return pkl_load(fname)
 
         aln = self.get_structures_msa()
 
@@ -358,15 +367,25 @@ class Aligner:
 
         numeric_msa_target = numeric_msa[..., inds_target]
 
-        return _one_hot_msa(numeric_msa_target).transpose([1, 2, 0])
+        seqs = _one_hot_msa(numeric_msa_target).transpose([1, 2, 0])
+        pkl_save(fname, seqs)
+        return seqs
+
 
     @property
     def templates_ss_acc_tensor(self):
+
+        fname = os.path.join(self._msa_data_path, 'templates_ss_acc_tensor.pkl')
+        if os.path.isfile(fname):
+            return pkl_load(fname)
+
 
         aln = self.get_structures_msa()
         ss_acc = np.stack([_get_aln_ss_acc(s.seq, s.id) for s in aln[1:]], axis=2)
         inds_target = np.where(np.array(list(aln[0].seq)) != '-')[0]
         ss_acc_target = _slice_rows(inds_target, ss_acc)
+        pkl_save(fname, ss_acc_target)
+
         return ss_acc_target
 
     @property
