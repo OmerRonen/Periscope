@@ -653,7 +653,8 @@ class DataCreator:
     @property
     def pwm_evo_ss(self):
         pwn_evo = self.scores['PWM'][1]
-        acc_ss = np.mean(self._get_reference_ss_acc(), axis=2)
+        # acc_ss = np.mean(self._get_reference_ss_acc(), axis=2)
+        acc_ss = np.mean(self.aligner.templates_ss_acc_tensor, axis=2)
         return np.concatenate([pwn_evo, acc_ss], axis=-1)
 
     @property
@@ -1147,34 +1148,6 @@ class DataCreator:
         ref = np.array(np.nanmin(dms, 2) < self._THRESHOLD, dtype=np.int)
         return self._replace_nas(ref)
 
-    @staticmethod
-    def _get_aln_ss_acc(seq, target):
-        ss_acc = np.empty((len(seq), 9))
-        ss_acc[:] = np.nan
-        inds_aln = np.where(np.array(list(seq)) != '-')[0]
-        inds_pdb = np.array(list(range(len(inds_aln))))
-        ss_acc_target = Protein(target[0:4], target[4]).ss_acc
-        ss_acc[inds_aln, ...] = ss_acc_target[inds_pdb, ...]
-        return ss_acc
-
-    @staticmethod
-    def _get_aln_dm(seq, target):
-        dm = np.empty((len(seq), len(seq)))
-        dm[:] = np.nan
-        inds_aln = np.where(np.array(list(seq)) != '-')[0]
-        inds_pdb = np.array(list(range(len(inds_aln))))
-
-        pairs_aln = list(itertools.combinations(inds_aln, 2))
-        pairs_pdb = list(itertools.combinations(inds_pdb, 2))
-
-        inds_aln = list(zip(*pairs_aln))
-        inds_pdb = list(zip(*pairs_pdb))
-
-        prot_dm = Protein(target[0:4], target[4]).dm
-        dm[inds_aln[0], inds_aln[1]] = prot_dm[inds_pdb[0], inds_pdb[1]]
-        dm[inds_aln[1], inds_aln[0]] = prot_dm[inds_pdb[1], inds_pdb[0]]
-
-        return dm
 
     @property
     def n_refs_test(self):
@@ -1182,78 +1155,61 @@ class DataCreator:
         n_strucs = len(self._aln) - 1
         return n_strucs
 
-    def _get_reference_ss_acc(self):
-        file = os.path.join(self._msa_data_path, 'k_acc_ss.pkl')
-        if os.path.isfile(file):
-            output = pkl_load(file)
-            if output.shape[2] == self._n_refs:
-                return output
-        structures = self._get_k_closest_references()
-        if structures is None:
-            return
-        self._get_clustalo_msa()
-        aln = self._aln
-        try:
-            acc_ss = np.stack([self._get_aln_ss_acc(s.seq, s.id) for s in aln[1:]], axis=2)
-        except ValueError:
-            return
-        target_inds = np.where(np.array(list(aln[0].seq)) != '-')[0]
-
-        aligned_acc_ss = acc_ss[target_inds, :]
-        n_strucs = aligned_acc_ss.shape[-1]
-
-        if n_strucs < self._n_refs:
-            shape = (aligned_acc_ss.shape[0], 9, self._n_refs - n_strucs)
-            zero_array = np.zeros(shape)
-
-            aligned_acc_ss = np.concatenate([zero_array, aligned_acc_ss], axis=2)
-        if n_strucs > self._n_refs:
-            aligned_acc_ss = aligned_acc_ss[..., n_strucs - self._n_refs: n_strucs]
-
-        output = self._replace_nas(aligned_acc_ss)
-        pkl_save(file, output)
-        return output
-
     @property
     def k_reference_dm_test(self):
 
-        file = os.path.join(self._msa_data_path, 'k_dm_tst.pkl')
-        if os.path.isfile(file):
-            output = pkl_load(file)
-            if output.shape[2] == self._n_refs:
-                return output
+        return self.trim_pad_arr(self.aligner.templates_distance_tensor)
 
-        structures = self._get_k_closest_references()
-        if structures is None:
-            return
+        # file = os.path.join(self._msa_data_path, 'k_dm_tst.pkl')
+        # if os.path.isfile(file):
+        #     output = pkl_load(file)
+        #     if output.shape[2] == self._n_refs:
+        #         return output
+        #
+        # structures = self._get_k_closest_references()
+        # if structures is None:
+        #     return
+        #
+        # self._get_clustalo_msa()
+        # aln = self._aln
+        # dms_fname = os.path.join(self._msa_data_path, 'dms_tst.pkl')
+        # if not os.path.isfile(dms_fname):
+        #     try:
+        #         dms = np.stack([self._get_aln_dm(s.seq, s.id) for s in aln[1:]], axis=2)
+        #         pkl_save(data=dms, filename=dms_fname)
+        #     except ValueError:
+        #         return
+        # else:
+        #     dms = pkl_load(dms_fname)
+        # target_inds = np.where(np.array(list(aln[0].seq)) != '-')[0]
+        #
+        # aligned_dms = dms[target_inds, :][:, target_inds]
+        # n_strucs = aligned_dms.shape[-1]
+        #
+        # if n_strucs < self._n_refs:
+        #     shape = (aligned_dms.shape[0], aligned_dms.shape[1], self._n_refs - n_strucs)
+        #     zero_array = np.zeros(shape)
+        #
+        #     aligned_dms = np.concatenate([zero_array, aligned_dms], axis=2)
+        # if n_strucs > self._n_refs:
+        #     aligned_dms = aligned_dms[..., n_strucs - self._n_refs: n_strucs]
+        #
+        # output = self._replace_nas(aligned_dms)
+        # pkl_save(file, output)
+        # return output
 
-        self._get_clustalo_msa()
-        aln = self._aln
-        dms_fname = os.path.join(self._msa_data_path, 'dms_tst.pkl')
-        if not os.path.isfile(dms_fname):
-            try:
-                dms = np.stack([self._get_aln_dm(s.seq, s.id) for s in aln[1:]], axis=2)
-                pkl_save(data=dms, filename=dms_fname)
-            except ValueError:
-                return
-        else:
-            dms = pkl_load(dms_fname)
-        target_inds = np.where(np.array(list(aln[0].seq)) != '-')[0]
-
-        aligned_dms = dms[target_inds, :][:, target_inds]
-        n_strucs = aligned_dms.shape[-1]
-
+    def trim_pad_arr(self, arr):
+        n_strucs = int(arr.shape[-1])
         if n_strucs < self._n_refs:
-            shape = (aligned_dms.shape[0], aligned_dms.shape[1], self._n_refs - n_strucs)
+            shape = list(arr.shape)
+            shape[-1] = self._n_refs - n_strucs
             zero_array = np.zeros(shape)
 
-            aligned_dms = np.concatenate([zero_array, aligned_dms], axis=2)
+            arr_out = np.concatenate([zero_array, arr], axis=2)
         if n_strucs > self._n_refs:
-            aligned_dms = aligned_dms[..., n_strucs - self._n_refs: n_strucs]
+            arr_out = arr[..., (n_strucs - self._n_refs): n_strucs]
+        return self._replace_nas(arr_out)
 
-        output = self._replace_nas(aligned_dms)
-        pkl_save(file, output)
-        return output
 
     @property
     def seq_target(self):
@@ -1261,17 +1217,20 @@ class DataCreator:
 
     @property
     def seq_refs_test(self):
-        return self._get_seq_refs_test()
+        # return self._get_seq_refs_test()
+        return self.trim_pad_arr(self.aligner.templates_sequence_tensor)
 
     @property
     def seq_refs_ss_acc(self):
-        seqs = self._get_seq_refs_test()
-        if seqs is None:
-            return
-        acc_ss = self._get_reference_ss_acc()
-        if acc_ss is None:
-            return
-        return np.concatenate([seqs, acc_ss], axis=1)
+        # seqs = self._get_seq_refs_test()
+        # if seqs is None:
+        #     return
+        # acc_ss = self._get_reference_ss_acc()
+        # if acc_ss is None:
+        #     return
+        # return np.concatenate([seqs, acc_ss], axis=1)
+
+        return self.trim_pad_arr(self.aligner.templates_ss_acc_seq_tensor)
 
     @property
     def modeller_dm(self):
