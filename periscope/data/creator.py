@@ -663,7 +663,7 @@ class DataCreator:
 
     @property
     def pwm_evo(self):
-        return self._fix_scores(self.scores['PWM'][1])
+        return self._replace_nas(self._fix_scores(self.scores['PWM'][1]))
 
     @property
     def pwm_evo_ss(self):
