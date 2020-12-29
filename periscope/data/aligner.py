@@ -368,4 +368,4 @@ class Aligner:
     @property
     def templates_ss_acc_seq_tensor(self):
         return np.concatenate([self.templates_sequence_tensor,
-                               self.templates_ss_acc_tensor], axis=2)
+                               self.templates_ss_acc_tensor], axis=1)
