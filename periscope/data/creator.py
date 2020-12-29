@@ -969,10 +969,19 @@ class DataCreator:
         ccmpred_mat = np.loadtxt(ccmpred_mat_file)
         if self._family:
             target_msa_seq = self._parse_msa()[self.target]
-            inds = np.where(np.array(list(target_msa_seq)) != '-')[0]
+            target_seq_arr = np.array(list(target_msa_seq))
+            inds = np.where(target_seq_arr != '-')[0]
             row_idx = np.array(inds)
             col_idx = np.array(inds)
-            ccmpred_mat = ccmpred_mat[row_idx[:, None], col_idx]
+            ccmpred_mat_slice = ccmpred_mat[row_idx[:, None], col_idx]
+
+            target_msa_seq_no_gaps = ''.join(target_seq_arr[inds])
+            sub_ind = self.protein.str_seq.find(target_msa_seq_no_gaps)
+            rng = list(range(sub_ind, sub_ind+len(target_msa_seq_no_gaps)))
+            l = len(self.protein.str_seq)
+            ccmpred_mat = np.zeros(shape=(l, l))
+            idx = np.array(rng)
+            ccmpred_mat[idx[:, None], idx] = ccmpred_mat_slice
 
         return ccmpred_mat
 
