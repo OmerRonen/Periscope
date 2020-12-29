@@ -51,6 +51,8 @@ class DataCreator:
         except Exception:
             self._is_broken = True
         self._family = family
+        if self._family is not None:
+            self.target_seq_msa = np.array(list(self._parse_msa()[self.target]))
         self._msa_data_path = os.path.join(get_target_path(target, family), 'features')
         check_path(self._msa_data_path)
         self.target = target
@@ -642,24 +644,35 @@ class DataCreator:
 
         return pkl_load(scores_file)
 
+    def _fix_scores(self, score):
+        if self._family is None:
+            return score
+        inds = np.where(self.target_seq_msa != '-')
+        target_msa_seq_no_gaps = ''.join(self.target_seq_msa[inds])
+        sub_ind = self.protein.str_seq.find(target_msa_seq_no_gaps)
+        rng = list(range(sub_ind, sub_ind + len(target_msa_seq_no_gaps)))
+        l = len(self.protein.str_seq)
+        score_mat = np.zeros(shape=(l, score.shape[-1]))
+        idx = np.array(rng)
+        score_mat[idx, :] = score
+
     @property
     def pwm_w(self):
-        return self.scores['PWM'][0]
+        return self._fix_scores(self.scores['PWM'][0])
 
     @property
     def pwm_evo(self):
-        return self.scores['PWM'][1]
+        return self._fix_scores(self.scores['PWM'][1])
 
     @property
     def pwm_evo_ss(self):
-        pwn_evo = self.scores['PWM'][1]
         # acc_ss = np.mean(self._get_reference_ss_acc(), axis=2)
         acc_ss = np.mean(self.aligner.templates_ss_acc_tensor, axis=2)
-        return np.concatenate([pwn_evo, acc_ss], axis=-1)
+        return np.concatenate([self.pwm_evo, acc_ss], axis=-1)
 
     @property
     def conservation(self):
-        return np.expand_dims(np.array(self.scores['conservation']), axis=1)
+        return self._fix_scores(np.expand_dims(self.scores['conservation'], axis=1))
 
     @property
     def beff(self):
@@ -968,9 +981,8 @@ class DataCreator:
             self._run_ccmpred()
 
         ccmpred_mat = np.loadtxt(ccmpred_mat_file)
-        if self._family:
-            target_msa_seq = self._parse_msa()[self.target]
-            target_seq_arr = np.array(list(target_msa_seq))
+        if self._family is not None:
+            target_seq_arr = self.target_seq_msa
             inds = np.where(target_seq_arr != '-')[0]
             row_idx = np.array(inds)
             col_idx = np.array(inds)
