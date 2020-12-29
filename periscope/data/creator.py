@@ -11,7 +11,6 @@ import pandas as pd
 
 from scipy.special import softmax
 from Bio import SeqIO, pairwise2
-from Bio.Align import MultipleSeqAlignment, AlignInfo
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
@@ -76,7 +75,6 @@ class DataCreator:
         # self.evfold
         self.ccmpred
         self._find_all_references(msa)
-        self.k_reference_dm_new
         LOGGER.info('Generating phylo dm')
         self._get_phylo_structures_mat()
         LOGGER.info('Sorting structures')
@@ -167,6 +165,8 @@ class DataCreator:
         # full_alphabet = Gapped(ExtendedIUPACProtein())
         # fasta_seqs = [f.upper() for f in list(SeqIO.parse(msa_file, "fasta", alphabet=full_alphabet))]
         fasta_seqs = self._parse_msa()
+        if self._family is not None:
+            return fasta_seqs
         target_seq_full = fasta_seqs[self.target]
         target_seq_no_gap_inds = [i for i in range(len(target_seq_full)) if target_seq_full[i] != '-']
         target_seq = ''.join(target_seq_full[i] for i in target_seq_no_gap_inds)
@@ -175,7 +175,7 @@ class DataCreator:
             seq.seq = Seq(''.join(seq.seq[i] for i in inds))
             return seq
 
-        assert target_seq == "".join(self.protein.sequence)
+        # assert target_seq == "".join(self.protein.sequence)
         fasta_seqs_short = [_slice_seq(s, target_seq_no_gap_inds) for s in fasta_seqs.values()]
         return fasta_seqs_short
 
@@ -380,7 +380,7 @@ class DataCreator:
             with tempfile.NamedTemporaryFile(suffix='.aln') as tmp2:
                 convert_to_aln(tmp.name, tmp2.name)
 
-                ccmpred_mat_file = get_target_ccmpred_file(self.target)
+                ccmpred_mat_file = get_target_ccmpred_file(self.target, self._family)
 
                 ccmpred_cmd = ['ccmpred', tmp2.name, ccmpred_mat_file]
 
@@ -759,20 +759,6 @@ class DataCreator:
 
         return numeric_msa
 
-    def _get_seq_refs_full(self):
-        """Numeric sequence representation of references
-
-        Returns:
-            np.array: of shape (l, PROTEIN_BOW_DIM, n_structures)
-
-        """
-
-        seq_refs_file = os.path.join(self._msa_data_path, 'refs_seqs.pkl')
-
-        if os.path.isfile(seq_refs_file):
-            return pkl_load(seq_refs_file)
-
-        return self._generate_seq_refs_full()
 
     def _generate_seq_refs_full_test(self):
 
@@ -836,29 +822,6 @@ class DataCreator:
         pkl_save(file, output)
         return output
 
-    def _get_seq_refs(self):
-        """Numeric sequence representation of references
-
-        Returns:
-            np.array: of shape (l, PROTEIN_BOW_DIM, k)
-
-        """
-
-        bow_msa_full = self._get_seq_refs_full()
-
-        if bow_msa_full is None:
-            return
-
-        shape = bow_msa_full.shape
-        total_refs = shape[-1]
-
-        if total_refs >= self._n_refs:
-            return bow_msa_full[..., 0:self._n_refs]
-        else:
-            return np.concatenate(
-                [np.zeros((shape[0], shape[1], self._n_refs - total_refs)), bow_msa_full],
-                axis=2)
-
     @property
     def closest_reference(self):
 
@@ -869,99 +832,6 @@ class DataCreator:
         assert structure != self.protein.target
         return structure
 
-    def _get_pssm(self):
-        """Pssm array
-
-        Returns:
-            np.array: the msa pssm of shape (l, 26)
-
-        """
-
-        version = self._MSA_VERSION
-
-        pssm_file = os.path.join(self._msa_data_path, 'pssm_bio_v%s.pkl' % version)
-
-        if os.path.isfile(pssm_file):
-            return pkl_load(pssm_file)
-
-        msa_file = os.path.join(PATHS.hhblits, 'fasta',
-                                self.target + '_v%s.fasta' % version)
-
-        # full_alphabet = Gapped(ExtendedIUPACProtein())
-
-        fasta_seqs = [f.upper() for f in list(SeqIO.parse(msa_file, "fasta"))]
-        target_seq_full = fasta_seqs[0].seq
-        target_seq_no_gap_inds = [i for i in range(len(target_seq_full)) if target_seq_full[i] != '-']
-        target_seq = ''.join(target_seq_full[i] for i in target_seq_no_gap_inds)
-
-        def _slice_seq(seq, inds):
-            seq.seq = Seq(''.join(seq.seq[i] for i in inds))
-            return seq
-
-        assert target_seq == "".join(self.protein.sequence)
-        fasta_seqs_short = [_slice_seq(s, target_seq_no_gap_inds) for s in fasta_seqs]
-        msa = MultipleSeqAlignment(fasta_seqs_short)
-        summary = AlignInfo.SummaryInfo(msa)
-
-        # short_alphabet = IUPACProtein()
-        # chars_to_ignore = list(set(full_alphabet.letters).difference(set(short_alphabet.letters)))
-
-        n_homologous = len(msa)
-
-        expected = collections.OrderedDict(sorted(AMINO_ACID_STATS.items()))
-        expected = {k: n_homologous * v / 100 for k, v in expected.items()}
-        pssm = summary.pos_specific_score_matrix()
-        pssm = np.array([list(p.values()) for p in pssm]) / np.array(list(expected.values()))[:, None].T
-
-        epsilon = 1e-06
-
-        pssm_log = -1 * np.log(np.clip(pssm, a_min=epsilon, a_max=None))
-
-        pkl_save(pssm_file, pssm_log)
-
-        return pssm
-
-    def _get_aligned_ss(self):
-
-        ss_refs_file = os.path.join(self._msa_data_path, 'ss_refs.pkl')
-        if os.path.isfile(ss_refs_file):
-            return pkl_load(ss_refs_file)
-
-        return self._generate_aligned_ss()
-
-    def _generate_aligned_ss(self):
-
-        ss_refs_file = os.path.join(self._msa_data_path, 'ss_refs.pkl')
-
-        refs = self._get_k_closest_references()
-        if refs is None:
-            return
-
-        parsed_msa = self._parse_msa()
-        target_seq_msa = parsed_msa[self.target].seq
-        valid_inds = [i for i in range(len(target_seq_msa)) if target_seq_msa[i] != '-']
-        parsed_msa = {r: parsed_msa[r].seq for r in refs}
-        na_arr = np.array([0, 0, 0, 0, 0, 0, 0, 1])
-        secondary_structures = {r: np.stack([na_arr] * len(target_seq_msa), axis=0) for r in
-                                refs}
-        for ref, seq in parsed_msa.items():
-            reference = self.metadata['references_map'][ref][0][0]
-            start_ind_pdb, end_ind_pdb = self.metadata['references_map'][ref][0][1]
-            ref_prot = Protein(reference[0:4], reference[4])
-            reference_sequence_full = "".join(ref_prot.sequence)
-            reference_sequence = reference_sequence_full[start_ind_pdb:end_ind_pdb]
-
-            pdb_inds, msa_inds = self._align_pdb_msa(reference_sequence,
-                                                     "".join(seq).upper(),
-                                                     list(range(start_ind_pdb, end_ind_pdb)),
-                                                     one_d=True)
-            ss = ref_prot.secondary_structure
-            secondary_structures[ref][msa_inds, :] = ss[pdb_inds, :]
-            secondary_structures[ref] = secondary_structures[ref][valid_inds, :]
-
-        aligned_ss = np.stack([secondary_structures[s] for s in refs], axis=2)
-        pkl_save(ss_refs_file, aligned_ss)
-        return aligned_ss
 
     @staticmethod
     def _align_pdb_msa(pdb_sequence, msa_sequence, pdb_indices, one_d=False):
@@ -1096,51 +966,6 @@ class DataCreator:
 
             if aligned_structure is None:
                 continue
-
-            pkl_save(self._get_structure_file(homologous, self._STRUCTURES_VERSION), aligned_structure['dm'])
-            pkl_save(self._get_structure_file(homologous, self._STRUCTURES_VERSION, True), aligned_structure['dm_mean'])
-            self.metadata['references_map'][homologous] = aligned_structure['map']
-
-    def fix_capital_chain(self):
-
-        def _is_fix_required(hom):
-            if hom == self.target:
-                return False
-            required = False
-            for pdb in self.metadata['references_map'][hom]:
-                required |= pdb[0][4].upper() != pdb[0][4]
-
-            return required
-
-        requires_fix = [hom for hom in self.metadata['references_map'] if _is_fix_required(hom)]
-
-        if len(requires_fix) == 0:
-            return
-
-        msa = self._parse_msa()
-        target_msa_seq = "".join(msa[self.target].seq)
-
-        target_sequence = ''.join(self.protein.sequence)
-        target_pdb_indices = list(range(0, len(target_sequence)))
-
-        pdb_inds_target, msa_inds_target = self._align_pdb_msa(target_sequence,
-                                                               target_msa_seq,
-                                                               target_pdb_indices)
-
-        for homologous in requires_fix:
-            aligned_structure = self._find_reference(uniprot_name=homologous,
-                                                     msa_sequence=msa[homologous],
-                                                     pdb_inds_target=pdb_inds_target,
-                                                     msa_inds_target=msa_inds_target)
-
-            if aligned_structure is None:
-                del self.metadata['references_map'][homologous]
-                self._save_metadata()
-                self._generate_phylo_structures_mat()
-                self._get_sorted_structures()
-                self._generate_seq_refs_full()
-                self._generate_aligned_ss()
-                return
 
             pkl_save(self._get_structure_file(homologous, self._STRUCTURES_VERSION), aligned_structure['dm'])
             pkl_save(self._get_structure_file(homologous, self._STRUCTURES_VERSION, True), aligned_structure['dm_mean'])
@@ -1281,31 +1106,6 @@ class DataCreator:
             cms.append(modeller_dm)
 
         return np.nanmean(np.stack(cms, axis=2), axis=2)
-
-    def _get_refs_ss(self):
-        """Numeric sequence representation of references
-
-        Returns:
-            np.array: of shape (l, PROTEIN_BOW_DIM, k)
-
-        """
-
-        k = self._n_refs
-
-        ss_refs_full = self._get_aligned_ss()
-
-        if ss_refs_full is None:
-            return
-
-        shape = ss_refs_full.shape
-        total_refs = shape[-1]
-
-        if total_refs >= k:
-            return ss_refs_full[..., 0:k]
-        else:
-            return np.concatenate(
-                [np.zeros((shape[0], shape[1], k - total_refs)), ss_refs_full],
-                axis=2)
 
     def _get_cm(self, dm):
         if dm is None:
@@ -1622,48 +1422,12 @@ class DataCreator:
         n_strucs = len(self._aln) - 1
         return n_strucs
 
-    @property
-    def n_refs_new(self):
-        aln = self._get_refs_aln()
-        n_strucs = len(aln) - 1
-        return n_strucs
 
     @property
     def n_homs(self):
 
         return len(self._parse_msa())
 
-    @property
-    def k_reference_dm_new(self):
-
-        f_name = os.path.join(self._msa_data_path, 'aligned_refs_new.pkl')
-        aln = self._get_refs_aln()
-        n_strucs = len(aln) - 1
-        if n_strucs == 0:
-            return
-        if os.path.isfile(f_name):
-            aligned_dms = pkl_load(f_name)
-
-        else:
-
-            s_target = aln[0]
-
-            target_inds = np.where(np.array(list(s_target.seq)) != '-')[0]
-
-            dms = np.stack([self._get_aln_dm(s.seq, s.id) for s in aln[1:]], axis=2)
-            aligned_dms = dms[target_inds, :][:, target_inds]
-
-            pkl_save(filename=f_name, data=aligned_dms)
-
-        aligned_dms = aligned_dms[..., 0:self._n_refs]
-
-        if n_strucs < self._n_refs:
-            shape = (aligned_dms.shape[0], aligned_dms.shape[1], self._n_refs - n_strucs)
-            zero_array = np.zeros(shape)
-
-            aligned_dms = np.concatenate([zero_array, aligned_dms], axis=2)
-
-        return self._replace_nas(aligned_dms)
 
     def _get_reference_ss_acc(self):
         file = os.path.join(self._msa_data_path, 'k_acc_ss.pkl')
@@ -1739,30 +1503,6 @@ class DataCreator:
         return output
 
     @property
-    def k_reference_dm(self):
-        dms = []
-        structures = self._get_k_closest_references()
-
-        if structures is None:
-            return
-
-        n_strucs = len(structures)
-
-        structures = structures if self._n_refs >= n_strucs else structures[n_strucs - self._n_refs:n_strucs]
-
-        for i in range(min(self._n_refs, n_strucs)):
-            s = structures[i]
-            dm = pkl_load(os.path.join(self._get_structure_file(s, self._STRUCTURES_VERSION)))
-            dms.append(dm)
-
-        if n_strucs < self._n_refs:
-            zero_array = np.zeros_like(dms[0])
-            masking = [zero_array] * (self._n_refs - n_strucs)
-            dms = masking + dms
-
-        return self._replace_nas(np.stack(dms, axis=2))
-
-    @property
     def seq_target(self):
         return self._get_seq_target()
 
@@ -1780,57 +1520,6 @@ class DataCreator:
             return
         return np.concatenate([seqs, acc_ss], axis=1)
 
-    @property
-    def seq_refs(self):
-        return self._get_seq_refs()
-
-    @property
-    def seq_refs_pssm(self):
-        refs_pssm = [self.seq_refs, np.repeat(np.expand_dims(self._get_pssm(), axis=2), self._n_refs, 2)]
-        return np.array(np.concatenate(refs_pssm, axis=1), dtype=np.float32)
-
-    @property
-    def seq_target_pssm(self):
-        return np.array(np.concatenate([self.seq_target, self._get_pssm()], axis=1), dtype=np.float32)
-
-    @property
-    def seq_refs_ss(self):
-        ss_refs = self._get_refs_ss()
-
-        seq_refs_ss = np.concatenate([ss_refs, self.seq_refs], axis=1) if ss_refs is not None else None
-
-        return seq_refs_ss
-
-    @property
-    def seq_target_ss(self):
-        has_ss = self.protein.secondary_structure is not None
-
-        seq_target_ss = np.concatenate([self.protein.secondary_structure, self.seq_target], axis=1) if has_ss else None
-
-        return seq_target_ss
-
-    @property
-    def k_reference_dm_conv(self):
-        if self.k_reference_dm is None:
-            return
-        return np.squeeze(self.k_reference_dm)
-
-    @property
-    def seq_target_pssm_ss(self):
-        has_ss = self.protein.secondary_structure is not None
-
-        ss_pssm = [self.protein.secondary_structure, self.seq_target_pssm]
-        seq_target_pssm_ss = np.concatenate(ss_pssm, axis=1) if has_ss else None
-
-        return seq_target_pssm_ss
-
-    @property
-    def seq_refs_pssm_ss(self):
-        ss_refs = self._get_refs_ss()
-
-        seq_refs_pssm_ss = np.concatenate([ss_refs, self.seq_refs_pssm], axis=1) if ss_refs is not None else None
-
-        return seq_refs_pssm_ss
 
     @property
     def modeller_dm(self):

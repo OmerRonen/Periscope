@@ -640,7 +640,8 @@ def get_target_scores_file(target):
 
 
 def get_target_ccmpred_file(target, family=None):
-    ccmpred_path = os.path.join(get_target_path(target, family), 'ccmpred_new')
+    pth = get_target_path(target) if family is None else get_family_path(family)
+    ccmpred_path = os.path.join(pth , 'ccmpred_new')
     check_path(ccmpred_path)
 
     ccmpred_file = os.path.join(ccmpred_path, f'{target}.mat')
