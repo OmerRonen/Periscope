@@ -20,7 +20,7 @@ LOGGER = logging.getLogger(__name__)
 class DataGenerator:
     def __init__(self, proteins, epochs, mode, model_path, dataset,
                  batch_size=1, conv_features=None, n_refs=None, num_bins=2, old=False,
-                 templates_dropout=0):
+                 templates_dropout=0, family=None):
         self._proteins = proteins
         self._is_random = self._proteins is None
         self._batch_size = batch_size
@@ -36,6 +36,7 @@ class DataGenerator:
         self.dataset = dataset
         self._old = old
         self._templates_dropout = templates_dropout
+        self._family = family
 
     @property
     def num_proteins(self):
@@ -628,7 +629,7 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
 
         data = {}
         data_seeker = DataSeeker(protein, n_refs=self._n_refs)
-        data_creator = DataCreator(protein, n_refs=self._n_refs)
+        data_creator = DataCreator(protein, n_refs=self._n_refs, family=self._family)
         LOGGER.info(protein)
 
         try:
@@ -637,7 +638,7 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
             # end_time = time.time()
             # LOGGER.info(f'Evfold takes  {end_time-start_time}')
             # start_time = time.time()
-            ccmpred = np.expand_dims(data_seeker.ccmpred, axis=2)
+            ccmpred = np.expand_dims(data_creator.ccmpred, axis=2)
             # end_time = time.time()
             # LOGGER.info(f'CCmpred takes  {end_time-start_time}')
             # if ccmpred.shape != evfold.shape:
@@ -654,10 +655,10 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
                 data[FEATURES.k_reference_dm_conv] = np.zeros_like(data_creator.k_reference_dm_test)
 
             data[FEATURES.seq_refs] = data_creator.seq_refs_ss_acc
-            data[FEATURES.pwm_w] = data_seeker.pwm_w
+            data[FEATURES.pwm_w] = data_creator.pwm_w
             data[FEATURES.pwm_evo] = data_creator.pwm_evo_ss
-            data[FEATURES.conservation] = data_seeker.conservation
-            data[FEATURES.beff] = data_seeker.beff
+            data[FEATURES.conservation] = data_creator.conservation
+            data[FEATURES.beff] = data_creator.beff
 
         except Exception as e:
             LOGGER.error(f'Data error for protein {protein}:\n{str(e)}')

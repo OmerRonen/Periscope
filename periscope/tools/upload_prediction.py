@@ -45,7 +45,7 @@ def main():
         logits_df.to_csv(os.path.join(outfolder_p, 'logits.csv'))
         pkl_save(os.path.join(outfolder_p, 'weights.pkl'), weights[protein])
 
-    upload_folder(os.path.join(PATHS.periscope, outfolder), outfolder)
+    upload_folder(outfolder_full, outfolder)
 
 
 if __name__ == '__main__':

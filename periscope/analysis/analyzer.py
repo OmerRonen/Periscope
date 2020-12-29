@@ -54,7 +54,7 @@ def _get_average_prediction(model_names, dataset):
     return model_predictions
 
 
-def get_model_predictions(model: ContactMapEstimator, proteins=None, dataset=None):
+def get_model_predictions(model: ContactMapEstimator, proteins=None, dataset=None, family=None):
     dataset = model.predict_data_manager.dataset if dataset is None else dataset
     predictions_path = os.path.join(model.path, 'predictions')
     check_path(predictions_path)
@@ -62,7 +62,7 @@ def get_model_predictions(model: ContactMapEstimator, proteins=None, dataset=Non
     if os.path.isfile(prediction_file) and proteins is None:
         return pkl_load(prediction_file)
     if proteins is not None:
-        preds = list(model.get_custom_predictions_gen(proteins, dataset))
+        preds = list(model.get_custom_predictions_gen(proteins, dataset, family))
     else:
         preds = list(model.get_predictions_generator())
 
