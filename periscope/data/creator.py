@@ -618,7 +618,11 @@ class DataCreator:
     def _save_scores(self):
         a3m_file = get_a3m_fname(self.target, self._family)
         if not os.path.isfile(a3m_file):
-            self._run_hhblits()
+            if self._family is None:
+                self._run_hhblits()
+            else:
+                fasta_file = get_aln_fasta(self.target, self._family)
+                subprocess.call(f'reformat.pl {fasta_file} {a3m_file}', shell=True)
 
         def weights(msa):
             return [1 / len(msa)] * len(msa)
@@ -1220,6 +1224,8 @@ class DataCreator:
         # return output
 
     def trim_pad_arr(self, arr):
+        if arr is None:
+            return
         n_strucs = int(arr.shape[-1])
         if n_strucs < self._n_refs:
             shape = list(arr.shape)
