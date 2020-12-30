@@ -60,8 +60,8 @@ def get_raptor_logits(target):
     return raptor_data[3]['CbCb']
 
 
-def get_data(model_name, target):
-    dataset = get_target_dataset(target)
+def get_data(model_name, target, family=None):
+    dataset = get_target_dataset(target) if family is None else family
     prediction_path = os.path.join(PATHS.drive, model_name, 'predictions', dataset, target)
     data = pkl_load(os.path.join(prediction_path, 'data.pkl'))
     return data
@@ -237,7 +237,9 @@ def pkl_load(filename):
     return data
 
 
-def get_target_dataset(target):
+def get_target_dataset(target, family=None):
+    if family is not None:
+        return family
     datasets = 'train eval pfam cameo membrane cameo41'.split(' ')
     for d in datasets:
         if target in getattr(DATASETS, d):

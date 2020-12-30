@@ -2,16 +2,13 @@ import logging
 import os
 
 import numpy as np
-import pandas as pd
 
 from argparse import ArgumentParser
 
 from periscope.analysis.analyzer import get_model_predictions
 from periscope.data.creator import DataCreator
 from periscope.net.contact_map import get_model_by_name, ContactMapEstimator
-from periscope.utils.constants import PATHS
 from periscope.utils.drive import upload_folder
-from periscope.utils.protein import Protein
 from periscope.utils.utils import check_path, pkl_save, get_target_dataset
 
 logging.getLogger().setLevel(logging.CRITICAL)
@@ -38,7 +35,7 @@ def _save_plot_matrices(model: ContactMapEstimator, predictions, family=None):
         data['gt'] = gt
         # pd.DataFrame(gt).to_csv(os.path.join(target_path, 'gt.csv'))
         data['alignment'] = dc.templates_aln
-        data['evfold'] = dc.evfold
+        # data['evfold'] = dc.evfold
         data['ccmpred'] = dc.ccmpred
         data['templates'] = dc.k_reference_dm_test
         data['seqs'] = dc.seq_refs_ss_acc
@@ -62,7 +59,7 @@ def main():
     data_creator = DataCreator(protein, family='trypsin')
     trypsin = list(data_creator.aligner.get_ref_map().values()) + [protein]
     model = get_model_by_name(model_name)
-    predictions = get_model_predictions(model, proteins=trypsin[0:4], family='trypsin')
+    predictions = get_model_predictions(model, proteins=trypsin, family='trypsin')
     _save_plot_matrices(model, predictions, family="trypsin")
 
     # for protein in trypsin:

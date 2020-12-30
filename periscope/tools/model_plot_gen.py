@@ -48,16 +48,18 @@ if __name__ == "__main__":
     proteins = args.proteins
     ds_given = dataset is not None
 
-    proteins = getattr(DATASETS, dataset) if ds_given else proteins
+    # proteins = getattr(DATASETS, dataset) if ds_given else proteins
+    model_drive_path = os.path.join(PATHS.drive, f'{model_name}/predictions/trypsin')
+    proteins = os.listdir(model_drive_path)
 
     for protein in proteins:
-        model_drive_path = os.path.join(PATHS.drive, f'{model_name}/predictions/{get_target_dataset(protein)}')
+        # model_drive_path = os.path.join(PATHS.drive, f'{model_name}/predictions/{get_target_dataset(protein)}')
 
         if not os.path.exists(os.path.join(model_drive_path, protein)):
             continue
         # if len(os.listdir(os.path.join(model_drive_path, protein)))<3:
         #     continue
-        make_art(model_name, protein)
+        make_art(model_name, protein, "trypsin")
         # if not ds_given:
         #     dataset = get_target_dataset(protein)
         #     model_drive_path = f'/Users/omerronen/Google Drive (omerronen10@gmail.com)/Periscope/models/{model_name}/artifacts/{dataset}'
