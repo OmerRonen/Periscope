@@ -56,7 +56,7 @@ class DataCreator:
         self.target = target
         if self._family is not None:
             LOGGER.info(f'Family {self._family}')
-            # self.target_seq_msa = np.array(list(self._parse_msa()[self.target]))
+            self.target_seq_msa = np.array(list(self._parse_msa()[self.target]))
         self._n_refs = n_refs
         self.metadata = self._get_metadata()
         self.has_refs = self.sorted_structures is not None
@@ -64,7 +64,7 @@ class DataCreator:
         self.recreated = self.metadata.get('new_data', False)
         if not os.path.isfile(self.fasta_fname):
             self._write_fasta()
-        # self.aligner = Aligner(self.target, self._family)
+        self.aligner = Aligner(self.target, self._family)
 
     def generate_data(self):
         self.ccmpred
