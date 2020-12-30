@@ -294,6 +294,11 @@ class Aligner:
 
         return ref_map
 
+    @property
+    def has_templates(self):
+        has_tmplts = len(self.get_ref_map()) > 0
+        return has_tmplts
+
     def _get_clustalo_msa_raw(self):
         clustalo_path = os.path.join(self._msa_data_path, 'clustalo')
         check_path(clustalo_path)
@@ -339,6 +344,9 @@ class Aligner:
     @property
     def templates_distance_tensor(self):
 
+        if not self.has_templates:
+            return
+
         fname = os.path.join(self._msa_data_path, 'templates_distance_tensor.pkl')
         if os.path.isfile(fname):
             return pkl_load(fname)
@@ -352,6 +360,9 @@ class Aligner:
 
     @property
     def templates_sequence_tensor(self):
+
+        if not self.has_templates:
+            return
 
         fname = os.path.join(self._msa_data_path, 'templates_sequence_tensor.pkl')
         if os.path.isfile(fname):
@@ -371,14 +382,15 @@ class Aligner:
         pkl_save(fname, seqs)
         return seqs
 
-
     @property
     def templates_ss_acc_tensor(self):
+
+        if not self.has_templates:
+            return
 
         fname = os.path.join(self._msa_data_path, 'templates_ss_acc_tensor.pkl')
         if os.path.isfile(fname):
             return pkl_load(fname)
-
 
         aln = self.get_structures_msa()
         ss_acc = np.stack([_get_aln_ss_acc(s.seq, s.id) for s in aln[1:]], axis=2)
@@ -390,5 +402,7 @@ class Aligner:
 
     @property
     def templates_ss_acc_seq_tensor(self):
+        if not self.has_templates:
+            return
         return np.concatenate([self.templates_sequence_tensor,
                                self.templates_ss_acc_tensor], axis=1)
