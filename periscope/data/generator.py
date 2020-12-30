@@ -628,11 +628,12 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
             return data
 
         data = {}
-        data_seeker = DataSeeker(protein, n_refs=self._n_refs)
-        data_creator = DataCreator(protein, n_refs=self._n_refs, family=self._family)
+
         LOGGER.info(protein)
 
         try:
+            data_seeker = DataSeeker(protein, n_refs=self._n_refs)
+            data_creator = DataCreator(protein, n_refs=self._n_refs, family=self._family)
             # start_time = time.time()
             # evfold = np.expand_dims(data_seeker.evfold, axis=2)
             # end_time = time.time()

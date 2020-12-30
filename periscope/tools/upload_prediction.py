@@ -7,6 +7,7 @@ import pandas as pd
 from argparse import ArgumentParser
 
 from periscope.analysis.analyzer import get_model_predictions
+from periscope.data.creator import DataCreator
 from periscope.net.contact_map import get_model_by_name
 from periscope.utils.constants import PATHS
 from periscope.utils.drive import upload_folder
@@ -19,7 +20,7 @@ logging.getLogger().setLevel(logging.CRITICAL)
 def parse_args():
     parser = ArgumentParser(description="Upload local folder to Google Drive")
     parser.add_argument('model', type=str, help='model name')
-    parser.add_argument('proteins', nargs="+", help='target names')
+    # parser.add_argument('proteins', nargs="+", help='target names')
     parser.add_argument('-o', "--outfolder", type=str, help='folder to save predictions')
 
     return parser.parse_args()
@@ -28,16 +29,19 @@ def parse_args():
 def main():
     args = parse_args()
     model_name = args.model
-    proteins = args.proteins
+    # proteins = args.proteins
+    protein = '5ms3A'
+    data_creator = DataCreator(protein, family='trypsin')
+    trypsin = list(data_creator.aligner.get_ref_map().values()) +[protein]
     outfolder = args.outfolder
     outfolder_full = os.path.join(PATHS.periscope, outfolder)
     check_path(outfolder_full)
     model = get_model_by_name(model_name)
-    predictions = get_model_predictions(model, proteins=proteins, family='trypsin')
+    predictions = get_model_predictions(model, proteins=trypsin, family='trypsin')
     logits = predictions['logits']
     weights = predictions['weights']
 
-    for protein in proteins:
+    for protein in trypsin:
         outfolder_p = os.path.join(outfolder_full, protein)
         check_path(outfolder_p)
         sequence = list(Protein(protein[0:4], protein[4]).str_seq)
