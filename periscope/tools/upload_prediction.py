@@ -25,7 +25,7 @@ def _save_plot_matrices(model: ContactMapEstimator, predictions, family=None):
         check_path(data_path)
         target_path = os.path.join(data_path, target)
         check_path(target_path)
-        dc = DataCreator(target)
+        dc = DataCreator(target, family=family)
         refs_contacts = dc.refs_contacts
         data['refs_contacts'] = refs_contacts
         # pd.DataFrame(refs_contacts).to_csv(os.path.join(target_path, 'refs_contacts.csv'))
@@ -62,7 +62,7 @@ def main():
     data_creator = DataCreator(protein, family='trypsin')
     trypsin = list(data_creator.aligner.get_ref_map().values()) + [protein]
     model = get_model_by_name(model_name)
-    predictions = get_model_predictions(model, proteins=trypsin, family='trypsin')
+    predictions = get_model_predictions(model, proteins=trypsin[0:4], family='trypsin')
     _save_plot_matrices(model, predictions, family="trypsin")
 
     # for protein in trypsin:

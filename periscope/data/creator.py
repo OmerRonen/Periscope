@@ -1153,8 +1153,9 @@ class DataCreator:
 
     @property
     def templates_aln(self):
-        self._get_clustalo_msa()
-        return self._aln
+        return self.aligner.get_structures_msa()
+        # self._get_clustalo_msa()
+        # return self._aln
 
     def _replace_nas(self, array):
         return np.nan_to_num(array, nan=self.NAN_VALUE)
