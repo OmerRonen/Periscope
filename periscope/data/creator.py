@@ -680,7 +680,10 @@ class DataCreator:
     @property
     def pwm_evo_ss(self):
         # acc_ss = np.mean(self._get_reference_ss_acc(), axis=2)
-        acc_ss = np.nanmean(self.aligner.templates_ss_acc_tensor, axis=2)
+        acc_ss_raw = self.aligner.templates_ss_acc_tensor
+        if acc_ss_raw is None:
+            return
+        acc_ss = np.nanmean(acc_ss_raw, axis=2)
         return self._replace_nas(np.concatenate([self.pwm_evo, acc_ss], axis=-1))
 
     @property
