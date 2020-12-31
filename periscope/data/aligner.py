@@ -75,7 +75,7 @@ def find_aligned_dm_uniprot(uniprot, seq_msa):
         hom_prot = Protein(pdb[0:4], pdb[4])
 
         seq_pdb = hom_prot.str_seq
-        if seq_pdb is None:
+        if seq_pdb is None or len(seq_pdb) == 0:
             continue
         is_aligned = find_aligned_mapping(seq_msa, seq_pdb)
         if is_aligned:

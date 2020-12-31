@@ -55,7 +55,7 @@ def main():
     args = parse_args()
     model_name = args.model
     # proteins = args.proteins
-    protein = '5ms3A'
+    protein = '1mbqA'
     data_creator = DataCreator(protein, family='trypsin')
     trypsin = list(data_creator.aligner.get_ref_map().values()) + [protein]
     model = get_model_by_name(model_name)
