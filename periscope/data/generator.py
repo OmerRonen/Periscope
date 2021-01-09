@@ -670,7 +670,7 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
             has_nones |= data[f] is None
         if has_nones:
             return
-        target_sequence_length = len(data_seeker.protein.sequence)
+        target_sequence_length = len(data_creator.str_seq)
         data['sequence_length'] = np.array([target_sequence_length])
 
         if target_sequence_length >= 650:

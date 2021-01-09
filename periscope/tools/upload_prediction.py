@@ -57,7 +57,7 @@ def main():
     # proteins = args.proteins
     protein = '1mbqA'
     data_creator = DataCreator(protein, family='trypsin')
-    trypsin = list(set(data_creator._parse_msa().keys()).difference(set(data_creator.aligner.get_ref_map().keys())))[0:100]#list(data_creator.aligner.get_ref_map().values()) + [protein]
+    trypsin = list(set(data_creator._parse_msa().keys()).difference(set(data_creator.aligner.get_ref_map().keys())))[0:2]#list(data_creator.aligner.get_ref_map().values()) + [protein]
     model = get_model_by_name(model_name)
     predictions = get_model_predictions(model, proteins=trypsin, family='trypsin')
     _save_plot_matrices(model, predictions, family="trypsin")
