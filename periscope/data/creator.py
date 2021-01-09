@@ -46,6 +46,7 @@ class DataCreator:
 
     def __init__(self, target, n_refs=N_REFS, family=None):
         self.protein = Protein(target[0:4], target[4])
+        self.str_seq = self.protein.str_seq
         try:
             self._is_broken = not hasattr(self.protein, 'sequence')
         except Exception:
@@ -57,6 +58,8 @@ class DataCreator:
         if self._family is not None:
             LOGGER.info(f'Family {self._family}')
             self.target_seq_msa = np.array(list(self._parse_msa()[self.target]))
+            seq = self.str_seq
+            self.str_seq = "".join(self.target_seq_msa[self.target_seq_msa != '-']) if seq is None else seq
         self._n_refs = n_refs
         self.metadata = self._get_metadata()
         self.has_refs = self.sorted_structures is not None
@@ -661,9 +664,9 @@ class DataCreator:
             return score
         inds = np.where(self.target_seq_msa != '-')
         target_msa_seq_no_gaps = ''.join(self.target_seq_msa[inds])
-        sub_ind = self.protein.str_seq.find(target_msa_seq_no_gaps)
+        sub_ind = self.str_seq.find(target_msa_seq_no_gaps)
         rng = list(range(sub_ind, sub_ind + len(target_msa_seq_no_gaps)))
-        l = len(self.protein.str_seq)
+        l = len(self.str_seq)
         score_mat = np.zeros(shape=(l, score.shape[-1]))
         idx = np.array(rng)
         score_mat[idx, :] = score
