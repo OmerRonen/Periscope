@@ -58,12 +58,13 @@ def main():
     args = parse_args()
     model_name = args.model
     # proteins = args.proteins
+    family = 'XCL1'
     protein = '2jp1A'
-    data_creator = DataCreator(protein, family='XCL1')
-    trypsin = list(data_creator._parse_msa().keys())[0:100]#list(data_creator.aligner.get_ref_map().values()) + [protein]
+    data_creator = DataCreator(protein, family=family)
+    proteins = list(data_creator._parse_msa().keys())[0:100]#list(data_creator.aligner.get_ref_map().values()) + [protein]
     model = get_model_by_name(model_name)
-    predictions = get_model_predictions(model, proteins=trypsin, family='trypsin')
-    _save_plot_matrices(model, predictions, family="trypsin")
+    predictions = get_model_predictions(model, proteins=proteins, family=family)
+    _save_plot_matrices(model, predictions, family=family)
 
     # for protein in trypsin:
     #     try:
