@@ -1008,9 +1008,9 @@ class DataCreator:
             ccmpred_mat_slice = ccmpred_mat[row_idx[:, None], col_idx]
 
             target_msa_seq_no_gaps = ''.join(target_seq_arr[inds])
-            sub_ind = self.protein.str_seq.find(target_msa_seq_no_gaps)
+            sub_ind = self.str_seq.find(target_msa_seq_no_gaps)
             rng = list(range(sub_ind, sub_ind + len(target_msa_seq_no_gaps)))
-            l = len(self.protein.str_seq)
+            l = len(self.str_seq)
             ccmpred_mat = np.zeros(shape=(l, l))
             idx = np.array(rng)
             ccmpred_mat[idx[:, None], idx] = ccmpred_mat_slice
