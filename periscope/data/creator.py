@@ -14,15 +14,15 @@ from Bio import SeqIO, pairwise2
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from .aligner import _get_id, _get_id_family, Aligner
+from .aligner import  Aligner
 from .pssm import compute_PWM
 from ..utils.protein import Protein
-from ..utils.constants import PATHS, DATASETS, AMINO_ACID_STATS, PROTEIN_BOW_DIM, SEQ_ID_THRES, N_REFS
+from ..utils.constants import PATHS, DATASETS, PROTEIN_BOW_DIM, SEQ_ID_THRES, N_REFS
 from ..utils.utils import (convert_to_aln, write_fasta, MODELLER_VERSION, create_sifts_mapping, read_raw_ec_file,
                            pkl_save, pkl_load, compute_structures_identity_matrix, VERSION, get_modeller_pdb_file,
                            get_target_path, get_target_ccmpred_file, check_path, read_fasta, run_clustalo,
                            get_aln_fasta, get_predicted_pdb, save_chain_pdb, get_a3m_fname, get_target_scores_file,
-                           timefunc, get_target_hhblits_path)
+                        get_target_hhblits_path)
 
 logging.basicConfig(level=logging.INFO)
 
