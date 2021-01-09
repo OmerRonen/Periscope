@@ -39,5 +39,6 @@ def main():
     reformat = ['reformat.pl', output_reformat1, output_reformat2]
     subprocess.run(reformat)
 
+
 if __name__ == '__main__':
     main()
