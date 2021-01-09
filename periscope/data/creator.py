@@ -460,6 +460,10 @@ class DataCreator:
         msa_file = get_aln_fasta(self.target, self._family)
 
         def _get_id(seq):
+            if "UniRef100" in seq.name:
+                return seq.name.split('_')[1], ""
+            if len(seq.name) == 5:
+                return  seq.name, seq.name
             des = seq.description.split('|')
             uniprot_id = des[1]
 
@@ -527,7 +531,7 @@ class DataCreator:
         return sequences
 
     def _parse_msa(self):
-        if self._family == 'trypsin':
+        if self._family is not None:
             return self._parse_custom_msa()
         return self._parse_msa_default()
 
