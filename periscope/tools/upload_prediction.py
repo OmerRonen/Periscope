@@ -31,7 +31,10 @@ def _save_plot_matrices(model: ContactMapEstimator, predictions, family=None):
         weights = np.squeeze(predictions['weights'][target])
         data['weights'] = weights
         # pd.DataFrame(prediction).to_csv(os.path.join(target_path, 'prediction.csv'))
-        gt = dc.protein.cm
+        try:
+            gt = dc.protein.cm
+        except Exception:
+            gt = None
         data['gt'] = gt
         # pd.DataFrame(gt).to_csv(os.path.join(target_path, 'gt.csv'))
         data['alignment'] = dc.templates_aln
