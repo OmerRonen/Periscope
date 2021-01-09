@@ -527,7 +527,7 @@ class DataCreator:
         return sequences
 
     def _parse_msa(self):
-        if self._family is not None:
+        if self._family == 'trypsin':
             return self._parse_custom_msa()
         return self._parse_msa_default()
 
