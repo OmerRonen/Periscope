@@ -310,17 +310,12 @@ class Aligner:
         ref_map[self.target] = self.target
         if not os.path.isfile(fname):
             sequences = [_get_record(u, p) for u, p in ref_map.items() if Protein(p[0:4], p[4]).str_seq is not None]
-            run_clustalo(sequences, fname, self.target, structures, self._family)
-        aln = read_fasta(fname, True)
-        has_target = len([s for s in aln if s.id == self.target]) > 0
-        if not has_target:
-            with tempfile.NamedTemporaryFile(suffix=".fasta") as fname:
-                sequences = [_get_record(u, p) for u, p in ref_map.items() if Protein(p[0:4], p[4]).str_seq is not None]
+            if Protein(self.target[0:4], self.target[4]).str_seq is None:
                 seq_full = np.array(list(self._parse_msa()[self.target]))
                 seq = ''.join(seq_full[seq_full != '-'])
                 sequences += [SeqRecord(Seq(seq), id=self.target, name=self.target, description='')]
-                run_clustalo(sequences, fname.name, self.target, structures, self._family)
-                aln = read_fasta(fname.name, True)
+            run_clustalo(sequences, fname, self.target, structures, self._family)
+        aln = read_fasta(fname, True)
 
         ref_map_inv = {y: x for x, y in ref_map.items()}
 
