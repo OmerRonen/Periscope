@@ -21,6 +21,7 @@ logging.basicConfig(level=logging.INFO)
 warnings.simplefilter('ignore', PDBConstructionWarning)
 path_to_dssp = os.path.join(PATHS.src, 'dssp-2.3.0/mkdssp')
 
+
 def _is_valid(r):
     return is_aa(r)
 
@@ -120,7 +121,6 @@ class Protein:
         poly = Polypeptide.Polypeptide(self._bio_chain)
         aa_mask = [Polypeptide.is_aa(r) for r in poly]
         return aa_mask
-
 
     def _get_residues(self):
 
