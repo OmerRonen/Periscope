@@ -358,7 +358,7 @@ class DataCreator:
 
                 ccmpred_cmd = f'ccmpred {tmp2.name} {ccmpred_mat_file}'
 
-                p = subprocess.call(ccmpred_cmd, shell=True)
+                p = subprocess.run(ccmpred_cmd, shell=True)
                 if p.returncode != 0:
                     LOGGER.info(f'CCMpred failed for {self.target}')
                 return p.returncode == 0
