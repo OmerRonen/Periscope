@@ -14,7 +14,7 @@ def main():
     protein = '2jp1A'
     family = 'XCL1'
 
-    data_creator = DataCreator(protein, family=family)
+    DataCreator(protein, family=family).ccmpred
 
     # org = '2n54A'
     # ans = '7jh1A'
