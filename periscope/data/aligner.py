@@ -120,6 +120,10 @@ def find_aligned_mapping(seq_msa, seq_pdb):
 
 
 def _get_id_family(seq, target):
+    if "UniRef100" in seq.name:
+        return seq.name.split('_')[1], ""
+    if len(seq.name) == 5:
+        return seq.name, seq.name
     des = seq.description.split('|')
     uniprot_id = des[1]
 

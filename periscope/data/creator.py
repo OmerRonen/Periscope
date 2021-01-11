@@ -349,14 +349,17 @@ class DataCreator:
             msa = msa[0:32000]
 
         with tempfile.NamedTemporaryFile() as tmp:
-            write_fasta(msa, tmp.name)
-
             with tempfile.NamedTemporaryFile(suffix='.aln') as tmp2:
-                convert_to_aln(tmp.name, tmp2.name)
+
+                tmp_name = tmp.name
+                tmp2_name = tmp2.name
+                write_fasta(msa, tmp_name)
+
+                convert_to_aln(tmp_name, tmp2_name)
 
                 ccmpred_mat_file = get_target_ccmpred_file(self.target, self._family)
 
-                ccmpred_cmd = f'ccmpred {tmp2.name} {ccmpred_mat_file}'
+                ccmpred_cmd = f'ccmpred {tmp2_name} {ccmpred_mat_file}'
 
                 p = subprocess.run(ccmpred_cmd, shell=True)
                 if p.returncode != 0:
