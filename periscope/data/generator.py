@@ -20,7 +20,7 @@ LOGGER = logging.getLogger(__name__)
 class DataGenerator:
     def __init__(self, proteins, epochs, mode, model_path, dataset,
                  batch_size=1, conv_features=None, n_refs=None, num_bins=2, old=False,
-                 templates_dropout=0, family=None):
+                 templates_dropout=0, family=None, require_template=True):
         self._proteins = proteins
         self._is_random = self._proteins is None
         self._batch_size = batch_size
@@ -37,7 +37,7 @@ class DataGenerator:
         self._old = old
         self._templates_dropout = templates_dropout
         self._family = family
-
+        self._require_template = require_template
     @property
     def num_proteins(self):
         if self._proteins is None:
@@ -651,11 +651,12 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
             return
         try:
             data[FEATURES.k_reference_dm_conv] = data_creator.k_reference_dm_test
+            data[FEATURES.seq_refs] = data_creator.seq_refs_ss_acc
+
             if drop == 1 and self._mode == tf.estimator.ModeKeys.TRAIN:
                 LOGGER.info('Templates dropped')
                 data[FEATURES.k_reference_dm_conv] = np.zeros_like(data_creator.k_reference_dm_test)
 
-            data[FEATURES.seq_refs] = data_creator.seq_refs_ss_acc
             data[FEATURES.pwm_w] = data_creator.pwm_w
             data[FEATURES.pwm_evo] = data_creator.pwm_evo_ss
             data[FEATURES.conservation] = data_creator.conservation

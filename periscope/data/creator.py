@@ -14,7 +14,7 @@ from Bio import SeqIO, pairwise2
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from .aligner import  Aligner
+from .aligner import Aligner
 from .pssm import compute_PWM
 from ..utils.protein import Protein
 from ..utils.constants import PATHS, DATASETS, PROTEIN_BOW_DIM, SEQ_ID_THRES, N_REFS
@@ -22,7 +22,7 @@ from ..utils.utils import (convert_to_aln, write_fasta, MODELLER_VERSION, create
                            pkl_save, pkl_load, compute_structures_identity_matrix, VERSION, get_modeller_pdb_file,
                            get_target_path, get_target_ccmpred_file, check_path, read_fasta, run_clustalo,
                            get_aln_fasta, get_predicted_pdb, save_chain_pdb, get_a3m_fname, get_target_scores_file,
-                        get_target_hhblits_path)
+                           get_target_hhblits_path)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -44,7 +44,7 @@ class DataCreator:
     _PHYLO_VERSION = 5
     _THRESHOLD = 8
 
-    def __init__(self, target, n_refs=N_REFS, family=None):
+    def __init__(self, target, n_refs=N_REFS, family=None, require_templates=False):
         self.protein = Protein(target[0:4], target[4])
         self.str_seq = self.protein.str_seq
         try:
@@ -68,6 +68,7 @@ class DataCreator:
         if not os.path.isfile(self.fasta_fname):
             self._write_fasta()
         self.aligner = Aligner(self.target, self._family)
+        self._require_templates = require_templates
 
     def generate_data(self):
         self.ccmpred
@@ -350,7 +351,6 @@ class DataCreator:
 
         with tempfile.NamedTemporaryFile() as tmp:
             with tempfile.NamedTemporaryFile(suffix='.aln') as tmp2:
-
                 tmp_name = tmp.name
                 tmp2_name = tmp2.name
                 write_fasta(msa, tmp_name)
@@ -466,7 +466,7 @@ class DataCreator:
             if "UniRef100" in seq.name:
                 return seq.name.split('_')[1], ""
             if len(seq.name) == 5:
-                return  seq.name, seq.name
+                return seq.name, seq.name
             des = seq.description.split('|')
             uniprot_id = des[1]
 
@@ -642,7 +642,7 @@ class DataCreator:
         if self._family is not None or len(fasta_seqs) > 10000:
 
             sub_msa = fasta_seqs[0:10000]
-            #sub_msa = list(np.random.choice(fasta_seqs, 10000,p=weights(fasta_seqs)))
+            # sub_msa = list(np.random.choice(fasta_seqs, 10000,p=weights(fasta_seqs)))
             msa_full = self._parse_msa()
             sub_msa = [msa_full[self.target]] + sub_msa
             with tempfile.NamedTemporaryFile(suffix='.fasta') as fasta_tmp:
@@ -1196,45 +1196,13 @@ class DataCreator:
     @property
     def k_reference_dm_test(self):
 
-        return self.trim_pad_arr(self.aligner.templates_distance_tensor)
-
-        # file = os.path.join(self._msa_data_path, 'k_dm_tst.pkl')
-        # if os.path.isfile(file):
-        #     output = pkl_load(file)
-        #     if output.shape[2] == self._n_refs:
-        #         return output
-        #
-        # structures = self._get_k_closest_references()
-        # if structures is None:
-        #     return
-        #
-        # self._get_clustalo_msa()
-        # aln = self._aln
-        # dms_fname = os.path.join(self._msa_data_path, 'dms_tst.pkl')
-        # if not os.path.isfile(dms_fname):
-        #     try:
-        #         dms = np.stack([self._get_aln_dm(s.seq, s.id) for s in aln[1:]], axis=2)
-        #         pkl_save(data=dms, filename=dms_fname)
-        #     except ValueError:
-        #         return
-        # else:
-        #     dms = pkl_load(dms_fname)
-        # target_inds = np.where(np.array(list(aln[0].seq)) != '-')[0]
-        #
-        # aligned_dms = dms[target_inds, :][:, target_inds]
-        # n_strucs = aligned_dms.shape[-1]
-        #
-        # if n_strucs < self._n_refs:
-        #     shape = (aligned_dms.shape[0], aligned_dms.shape[1], self._n_refs - n_strucs)
-        #     zero_array = np.zeros(shape)
-        #
-        #     aligned_dms = np.concatenate([zero_array, aligned_dms], axis=2)
-        # if n_strucs > self._n_refs:
-        #     aligned_dms = aligned_dms[..., n_strucs - self._n_refs: n_strucs]
-        #
-        # output = self._replace_nas(aligned_dms)
-        # pkl_save(file, output)
-        # return output
+        out = self.trim_pad_arr(self.aligner.templates_distance_tensor)
+        return_zeros = not self._require_templates and out is None
+        if not return_zeros:
+            return out
+        l = len(self.protein.str_seq)
+        zeros = np.zeros((l, l, self._n_refs))
+        return zeros
 
     def trim_pad_arr(self, arr):
         if arr is None:
@@ -1257,19 +1225,24 @@ class DataCreator:
     @property
     def seq_refs_test(self):
         # return self._get_seq_refs_test()
-        return self.trim_pad_arr(self.aligner.templates_sequence_tensor)
+        out = self.trim_pad_arr(self.aligner.templates_sequence_tensor)
+        return_zeros = not self._require_templates and out is None
+        if not return_zeros:
+            return out
+        l = len(self.protein.str_seq)
+        zeros = np.zeros((l, 22, self._n_refs))
+        return zeros
 
     @property
     def seq_refs_ss_acc(self):
-        # seqs = self._get_seq_refs_test()
-        # if seqs is None:
-        #     return
-        # acc_ss = self._get_reference_ss_acc()
-        # if acc_ss is None:
-        #     return
-        # return np.concatenate([seqs, acc_ss], axis=1)
 
-        return self.trim_pad_arr(self.aligner.templates_ss_acc_seq_tensor)
+        out = self.trim_pad_arr(self.aligner.templates_ss_acc_seq_tensor)
+        return_zeros = not self._require_templates and out is None
+        if not return_zeros:
+            return out
+        l = len(self.protein.str_seq)
+        zeros = np.zeros((l, 31, self._n_refs))
+        return zeros
 
     @property
     def modeller_dm(self):
