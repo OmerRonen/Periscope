@@ -56,6 +56,8 @@ class DataCreator:
         check_path(self._msa_data_path)
         self.target = target
         self.has_msa = os.path.isfile(get_aln_fasta(self.target, self._family))
+        if not self.has_msa:
+            return
         if self._family is not None:
             LOGGER.info(f'Family {self._family}')
             self.target_seq_msa = np.array(list(self._parse_msa()[self.target]))
