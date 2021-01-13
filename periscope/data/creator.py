@@ -1215,7 +1215,7 @@ class DataCreator:
             zero_array = np.zeros(shape)
 
             arr_out = np.concatenate([zero_array, arr], axis=2)
-        if n_strucs > self._n_refs:
+        if n_strucs >= self._n_refs:
             arr_out = arr[..., (n_strucs - self._n_refs): n_strucs]
         return self._replace_nas(arr_out)
 
