@@ -633,7 +633,12 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
 
         try:
             data_seeker = DataSeeker(protein, n_refs=self._n_refs)
-            data_creator = DataCreator(protein, n_refs=self._n_refs, family=self._family)
+            data_creator = DataCreator(protein, n_refs=self._n_refs, family=self._family,
+                                       require_templates=self._require_template)
+
+            if not data_creator.has_msa:
+                return
+
             # start_time = time.time()
             # evfold = np.expand_dims(data_seeker.evfold, axis=2)
             # end_time = time.time()

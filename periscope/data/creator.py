@@ -47,6 +47,7 @@ class DataCreator:
     def __init__(self, target, n_refs=N_REFS, family=None, require_templates=False):
         self.protein = Protein(target[0:4], target[4])
         self.str_seq = self.protein.str_seq
+        self.has_msa = os.path.isfile(get_aln_fasta(self.target, self._family))
         try:
             self._is_broken = not hasattr(self.protein, 'sequence')
         except Exception:
