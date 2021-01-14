@@ -301,7 +301,7 @@ class Aligner:
 
     @property
     def has_templates(self):
-        has_tmplts = len(self.get_ref_map()) > 1
+        has_tmplts = len(self.get_structures_msa()) > 1
         return has_tmplts
 
     def _get_clustalo_msa_raw(self):
