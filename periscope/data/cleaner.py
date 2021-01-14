@@ -47,7 +47,7 @@ def clean_hhblits():
     test = set(DATASETS_FULL.pfam) | set(DATASETS_FULL.membrane) | set(DATASETS_FULL.cameo) | set(DATASETS_FULL.cameo41)
     all_targets = train | test
     for t in all_targets:
-        t_path = os.path.join(get_target_path(t), 'hhblits')
+        t_path = os.path.join(get_target_path(t), 'hhblits_new')
         a3m_file = os.path.join(t_path, f'{t}.a3m')
         a2m_file = os.path.join(t_path, f'{t}.a2m')
         hhr_file = os.path.join(t_path, f'{t}.hhr')

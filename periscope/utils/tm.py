@@ -153,10 +153,11 @@ def _get_raptor_ss3_txt(target, full=False):
     a3m_aln = get_a3m_fname(target)
 
     if not os.path.isfile(a3m_aln):
-        reformat = ['reformat.pl', get_aln_fasta(target), a3m_aln]
-        subprocess.run(reformat)
-
-    tgt_file = os.path.join(PATHS.periscope, 'data', get_target_dataset(target), f'{target}.tgt')
+        reformat = f'reformat.pl {get_aln_fasta(target)} {a3m_aln}'
+        subprocess.call(reformat, shell=True)
+    tgt_path = os.path.join(PATHS.periscope, 'data', get_target_dataset(target))
+    check_path(tgt_path)
+    tgt_file = os.path.join(tgt_path, f'{target}.tgt')
     # with tempfile.NamedTemporaryFile(suffix='.a3m') as f:
     #     refor = f'reformat.pl {fasta_aln} {f.name}'
     #     subprocess.run(refor, shell=True)
@@ -300,7 +301,7 @@ def _get_target_tm(target, model, full=False, sswt=5, dataset=None, selectrr='2.
     save_chain_pdb(target, pred_pdb, predicted_pdb, 0)
 
     native_pdb = f'{target}_native.pdb'
-    save_chain_pdb(target, native_pdb, Protein(target[0:4], target[4]).pdb_fname, 1)
+    save_chain_pdb(target, native_pdb, Protein(target[0:4], target[4]).pdb_fname, 0)
 
     tm = _get_tm_score(native_pdb, pred_pdb)
     os.remove(pred_pdb)
