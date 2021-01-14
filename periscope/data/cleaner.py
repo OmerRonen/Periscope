@@ -50,10 +50,12 @@ def clean_hhblits():
         t_path = os.path.join(get_target_path(t), 'hhblits')
         a3m_file = os.path.join(t_path, f'{t}.a3m')
         a2m_file = os.path.join(t_path, f'{t}.a2m')
+        hhr_file = os.path.join(t_path, f'{t}.hhr')
         fasta_file = get_aln_fasta(t)
         if os.path.isfile(fasta_file):
             _remove_file(a3m_file)
             _remove_file(a2m_file)
+            _remove_file(hhr_file)
     # for t in train:
     #     fasta_aln = get_aln_fasta(t)
     #     clustalo_aln = get_clustalo_aln(t)
