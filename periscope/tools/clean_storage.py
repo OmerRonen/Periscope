@@ -1,12 +1,12 @@
 import os
 import shutil
 
-from ..utils.constants import DATASETS, PATHS
+from ..utils.constants import DATASETS_FULL, PATHS
 
 
 def main():
-    all_proteins = set(DATASETS.train) | set(DATASETS.eval) | set(DATASETS.pfam) | \
-                   set(DATASETS.cameo) | set(DATASETS.cameo41) | set(DATASETS.membrane)
+    all_proteins = set(DATASETS_FULL.train) | set(DATASETS_FULL.eval) | set(DATASETS_FULL.pfam) | \
+                   set(DATASETS_FULL.cameo) | set(DATASETS_FULL.cameo41) | set(DATASETS_FULL.membrane)
     data = []
     folders = os.listdir(os.path.join(PATHS.data, 'proteins'))
     for f in folders:
