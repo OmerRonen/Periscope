@@ -50,20 +50,24 @@ def _save_plot_matrices(model: ContactMapEstimator, predictions, family=None):
 def parse_args():
     parser = ArgumentParser(description="Upload local folder to Google Drive")
     parser.add_argument('model', type=str, help='model name')
-    # parser.add_argument('proteins', nargs="+", help='target names')
+    parser.add_argument('proteins', nargs="+", help='target names')
+    parser.add_argument('-f', '--family', type=str, help='family', default=None)
+
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
     model_name = args.model
-    # proteins = args.proteins
-    family = 'XCL1'
-    protein = '2jp1A'
-    data_creator = DataCreator(protein, family=family)
-    proteins = list(data_creator._parse_msa().keys())[0:100]#list(data_creator.aligner.get_ref_map().values()) + [protein]
+    proteins = args.proteins
+    family =  args.family
     model = get_model_by_name(model_name)
+
+    if family is not None:
+        data_creator = DataCreator(proteins[0], family=family)
+        proteins = list(data_creator._parse_msa().keys())[0:100]
     predictions = get_model_predictions(model, proteins=proteins, family=family)
+
     _save_plot_matrices(model, predictions, family=family)
 
     # for protein in trypsin:
