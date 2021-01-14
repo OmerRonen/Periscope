@@ -1,3 +1,4 @@
+import itertools
 import logging
 import os
 
@@ -74,7 +75,7 @@ def get_model_predictions(model: ContactMapEstimator, proteins=None, dataset=Non
         logits = pred['cm']
         weights = pred['weights']
         shp = int(logits.shape[-1])
-        contact_probs = np.sum(logits[..., 0:int(shp/2)], axis=-1)
+        contact_probs = np.sum(logits[..., 0:int(shp / 2)], axis=-1)
         l = contact_probs.shape[1]
         # top l/2 predictions
         quant = _get_quant(l)
@@ -980,11 +981,39 @@ def calculate_accuracy(logits, gt):
     return categories
 
 
-def ds_accuracy(model, dataset):
+def accuracy_short(model, datasets):
+    acc_short = {'RaptorX': {'mean': None, "std": None}, 'Periscope': {'mean': None, "std": None},
+                 "diff": {'mean': None, "std": None}}
+    acc_vec = []
+    acc_vec_raptor = []
+    for dataset in datasets:
+        acc_raw = _get_acc_raw(model, dataset)
+        categories = acc_raw['categories']
+        categories_raptor = acc_raw['categories_raptor']
+
+        ds_acc = list(itertools.chain.from_iterable([list(categories[c][2].values()) for c in ['M', 'S', "L"]]))
+        ds_acc_r = list(itertools.chain.from_iterable([list(categories_raptor[c][2].values()) for c in ['M', 'S', "L"]]))
+
+        acc_vec += ds_acc
+        acc_vec_raptor += ds_acc_r
+
+    acc_short['RaptorX']['mean'] = np.mean(acc_vec_raptor)
+    acc_short['RaptorX']['std'] = np.std(acc_vec_raptor)
+    acc_short['Periscope']['mean'] = np.mean(ds_acc)
+    acc_short['Periscope']['std'] = np.std(ds_acc)
+    diff_vec = np.array(acc_vec_raptor) - np.array(acc_vec)
+    acc_short['diff']['mean'] = np.mean(diff_vec)
+    acc_short['diff']['std'] = np.std(diff_vec)
+
+    print(acc_short)
+
+
+def _get_acc_raw(model, dataset):
     prediction_data = {}
     ds_path = os.path.join(PATHS.models, model.name, 'predictions', dataset)
     for target in os.listdir(ds_path):
-        if target not in getattr(DATASETS, dataset):
+        target_ds = get_target_dataset(target)
+        if target_ds is None:
             continue
         data = get_data(model.name, target)
         raptor_logits = get_raptor_logits(target)
@@ -1042,6 +1071,14 @@ def ds_accuracy(model, dataset):
                 n_preds = int(np.ceil(l / top_np))
                 categories[category][top_np][target] = float(sorted_gt[0:n_preds].mean())
                 categories_raptor[category][top_np][target] = float(sorted_gt_raptor[0:n_preds].mean())
+
+    return {"categories": categories, "categories_raptor": categories_raptor}
+
+
+def ds_accuracy(model, dataset):
+    acc_raw = _get_acc_raw(model, dataset)
+    categories = acc_raw['categories']
+    categories_raptor = acc_raw['categories_raptor']
 
     keys_multiindex = [['Short', 'Medium', 'Long'],
                        ['Top L', 'Top L/2', 'Top L/5', 'Top L/10']]

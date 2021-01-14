@@ -14,7 +14,7 @@ from scipy import interpolate
 from ..analysis.artist import get_cm
 from ..utils.utils import get_data, get_raptor_logits
 from ..utils.constants import PATHS, yaml_load, DATASETS
-from ..analysis.analyzer import ds_accuracy, calc_accuracy
+from ..analysis.analyzer import ds_accuracy, calc_accuracy, accuracy_short
 from ..net.contact_map import get_model_by_name
 from ..analysis.stats import get_datasets_pre_post
 
@@ -136,7 +136,8 @@ def main():
     print(get_datasets_pre_post())
     args = parse_args()
     model = args.model
-    datasets = args.datasets
+    datasets = ['membrane', 'cameo41', 'cameo']
+    accuracy_short(get_model_by_name(model), datasets)
     # tm = get_tm_stats(['membrane', 'cameo41', 'cameo'], model)
     # LOGGER.info(f'{model} average tm is {tm}')
     if model != 'modeller':
