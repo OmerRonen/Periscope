@@ -52,6 +52,8 @@ def parse_args():
     parser.add_argument('model', type=str, help='model name')
     parser.add_argument('proteins', nargs="+", help='target names')
     parser.add_argument('-f', '--family', type=str, help='family', default=None)
+    parser.add_argument('-g', '--generate_data', type=str,
+                        help='if true we generate the data in case it is missing', action="store_true")
 
     return parser.parse_args()
 
@@ -60,7 +62,14 @@ def main():
     args = parse_args()
     model_name = args.model
     proteins = args.proteins
-    family =  args.family
+    family = args.family
+
+    if args.generate_data:
+        for p in proteins:
+            data_creator = DataCreator(proteins[0], family=family)
+            if not data_creator.has_msa:
+                data_creator.generate_data()
+
     model = get_model_by_name(model_name)
 
     if family is not None:
