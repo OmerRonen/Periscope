@@ -9,6 +9,7 @@ from periscope.analysis.analyzer import get_model_predictions
 from periscope.data.creator import DataCreator
 from periscope.net.contact_map import get_model_by_name, ContactMapEstimator
 from periscope.utils.drive import upload_folder
+from periscope.utils.tm import model_modeller_tm_scores
 from periscope.utils.utils import check_path, pkl_save, get_target_dataset
 
 logging.getLogger().setLevel(logging.CRITICAL)
@@ -54,6 +55,8 @@ def parse_args():
     parser.add_argument('-f', '--family', type=str, help='family', default=None)
     parser.add_argument('-g', '--generate_data',
                         help='if true we generate the data in case it is missing', action="store_true")
+    parser.add_argument('-d', '--three_d_model',
+                        help='if true we generate 3d model', action="store_true")
 
     return parser.parse_args()
 
@@ -63,6 +66,7 @@ def main():
     model_name = args.model
     proteins = args.proteins
     family = args.family
+    get_d3_model = args.three_d_model
 
     if args.generate_data:
         for p in proteins:
@@ -78,7 +82,9 @@ def main():
     predictions = get_model_predictions(model, proteins=proteins, family=family)
 
     _save_plot_matrices(model, predictions, family=family)
-
+    if get_d3_model:
+        for target in proteins:
+            model_modeller_tm_scores(model_name, target)
     # for protein in trypsin:
     #     try:
     #         outfolder_p = os.path.join(outfolder_full, protein)
