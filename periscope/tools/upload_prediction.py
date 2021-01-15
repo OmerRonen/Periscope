@@ -52,7 +52,7 @@ def parse_args():
     parser.add_argument('model', type=str, help='model name')
     parser.add_argument('proteins', nargs="+", help='target names')
     parser.add_argument('-f', '--family', type=str, help='family', default=None)
-    parser.add_argument('-g', '--generate_data', type=str,
+    parser.add_argument('-g', '--generate_data',
                         help='if true we generate the data in case it is missing', action="store_true")
 
     return parser.parse_args()
