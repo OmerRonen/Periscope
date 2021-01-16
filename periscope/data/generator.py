@@ -634,7 +634,7 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
         try:
             data_seeker = DataSeeker(protein, n_refs=self._n_refs)
             data_creator = DataCreator(protein, n_refs=self._n_refs, family=self._family,
-                                       require_templates=self._require_template)
+                                       require_template=self._require_template)
 
             if not data_creator.has_msa:
                 return

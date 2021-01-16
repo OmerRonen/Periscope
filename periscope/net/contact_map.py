@@ -321,7 +321,7 @@ class ContactMapEstimator:
             'n_refs': k,
             'model_path': self.artifacts_path,
             'num_bins': self.net.num_bins,
-            'require_templates':  self._require_template
+            'require_template':  self._require_template
         }
         train_epochs = self._train_params['epochs']
         t_drop = self._train_params['templates_dropout']

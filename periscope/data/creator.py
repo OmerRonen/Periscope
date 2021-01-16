@@ -44,7 +44,7 @@ class DataCreator:
     _PHYLO_VERSION = 5
     _THRESHOLD = 8
 
-    def __init__(self, target, n_refs=N_REFS, family=None, require_templates=True):
+    def __init__(self, target, n_refs=N_REFS, family=None, require_template=True):
         self.protein = Protein(target[0:4], target[4])
         self.str_seq = self.protein.str_seq
         try:
@@ -69,7 +69,7 @@ class DataCreator:
         if not os.path.isfile(self.fasta_fname):
             self._write_fasta()
         self.aligner = Aligner(self.target, self._family)
-        self._require_templates = require_templates
+        self._require_template = require_template
 
     def generate_data(self):
         self.ccmpred
@@ -1198,7 +1198,7 @@ class DataCreator:
     def k_reference_dm_test(self):
 
         out = self.trim_pad_arr(self.aligner.templates_distance_tensor)
-        return_zeros = not self._require_templates and out is None
+        return_zeros = not self._require_template and out is None
         if not return_zeros:
             return out
         l = len(self.protein.str_seq)
@@ -1227,7 +1227,7 @@ class DataCreator:
     def seq_refs_test(self):
         # return self._get_seq_refs_test()
         out = self.trim_pad_arr(self.aligner.templates_sequence_tensor)
-        return_zeros = not self._require_templates and out is None
+        return_zeros = not self._require_template and out is None
         if not return_zeros:
             return out
         l = len(self.protein.str_seq)
@@ -1238,7 +1238,7 @@ class DataCreator:
     def seq_refs_ss_acc(self):
 
         out = self.trim_pad_arr(self.aligner.templates_ss_acc_seq_tensor)
-        return_zeros = not self._require_templates and out is None
+        return_zeros = not self._require_template and out is None
         if not return_zeros:
             return out
         l = len(self.protein.str_seq)
