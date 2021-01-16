@@ -70,6 +70,7 @@ class DataCreator:
             self._write_fasta()
         self.aligner = Aligner(self.target, self._family)
         self._require_template = require_template
+        LOGGER.info(f'require_template - {self._require_template}')
 
     def generate_data(self):
         self.ccmpred
