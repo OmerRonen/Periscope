@@ -299,6 +299,7 @@ class ContactMapEstimator:
         self._opt_params = self._train_params['opt']
 
         self._batch_size = self._train_params['batch_size']
+        self._require_template = self._train_params['require_template']
 
         self.conv_features = params['net']['data']['conv_features']
 
@@ -319,7 +320,8 @@ class ContactMapEstimator:
             'conv_features': self.conv_features,
             'n_refs': k,
             'model_path': self.artifacts_path,
-            'num_bins': self.net.num_bins
+            'num_bins': self.net.num_bins,
+            'require_templates':  self._require_template
         }
         train_epochs = self._train_params['epochs']
         t_drop = self._train_params['templates_dropout']
@@ -459,7 +461,7 @@ class ContactMapEstimator:
         dataset = dataset.batch(1)
         return dataset
 
-    def _get_custom_input_fn(self, proteins, dataset, family=None):
+    def _get_custom_input_fn(self, proteins, dataset, family=None, require_templates=True):
 
         data_generator_args = self._data_generator_args
 
@@ -468,6 +470,7 @@ class ContactMapEstimator:
                                    epochs=1,
                                    dataset=dataset,
                                    family=family,
+                                   require_templates=require_templates,
                                    **data_generator_args)
 
         def custom_input_fn():
