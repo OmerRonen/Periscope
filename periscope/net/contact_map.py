@@ -465,6 +465,7 @@ class ContactMapEstimator:
 
         data_generator_args = self._data_generator_args
         data_generator_args['require_template'] = require_template
+        LOGGER.info(data_generator_args)
         data_gen = self._generator(proteins=proteins,
                                    mode=tf.estimator.ModeKeys.PREDICT,
                                    epochs=1,

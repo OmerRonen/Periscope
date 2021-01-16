@@ -38,6 +38,8 @@ class DataGenerator:
         self._templates_dropout = templates_dropout
         self._family = family
         self._require_template = require_template
+        LOGGER.info(f'require_template generator {self._require_template}')
+
     @property
     def num_proteins(self):
         if self._proteins is None:
