@@ -29,7 +29,7 @@ class NetParams:
 
         params['train']['batch_size'] = params['train'].get('batch_size', 1)
         params['train']['templates_dropout'] = params['train'].get('templates_dropout', 0)
-        params['train']['require_templates'] = params['train'].get('require_templates', True)
+        params['train']['require_template'] = params['train'].get('require_template', True)
         if 'features' in params['net']['data'] and 'conv_features' not in params['net']['data']:
             params['net']['data']['conv_features'] = params['net']['data'][
                 'features']
