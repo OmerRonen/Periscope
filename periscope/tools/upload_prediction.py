@@ -12,7 +12,7 @@ from periscope.utils.drive import upload_folder
 from periscope.utils.tm import model_modeller_tm_scores
 from periscope.utils.utils import check_path, pkl_save, get_target_dataset
 
-logging.getLogger().setLevel(logging.CRITICAL)
+# logging.getLogger().setLevel(logging.CRITICAL)
 
 
 def _save_plot_matrices(model: ContactMapEstimator, predictions, family=None):
