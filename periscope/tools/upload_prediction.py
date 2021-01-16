@@ -57,8 +57,8 @@ def parse_args():
                         help='if true we generate the data in case it is missing', action="store_true")
     parser.add_argument('-d', '--three_d_model',
                         help='if true we generate 3d model', action="store_true")
-    parser.add_argument('-t', '--require_template',
-                        help='if true we require template for preidction', action="store_true")
+    parser.add_argument('-t', '--template_free',
+                        help='if true we do not require template for preidction', action="store_true")
 
     return parser.parse_args()
 
@@ -69,7 +69,7 @@ def main():
     proteins = args.proteins
     family = args.family
     get_d3_model = args.three_d_model
-    require_template = args.require_template
+    require_template = not args.template_free
 
     if args.generate_data:
         for p in proteins:
