@@ -44,7 +44,7 @@ class DataCreator:
     _PHYLO_VERSION = 5
     _THRESHOLD = 8
 
-    def __init__(self, target, n_refs=N_REFS, family=None, require_templates=False):
+    def __init__(self, target, n_refs=N_REFS, family=None, require_templates=True):
         self.protein = Protein(target[0:4], target[4])
         self.str_seq = self.protein.str_seq
         try:

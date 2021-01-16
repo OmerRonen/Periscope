@@ -461,16 +461,15 @@ class ContactMapEstimator:
         dataset = dataset.batch(1)
         return dataset
 
-    def _get_custom_input_fn(self, proteins, dataset, family=None, require_templates=True):
+    def _get_custom_input_fn(self, proteins, dataset, family=None, require_template=True):
 
         data_generator_args = self._data_generator_args
-
+        data_generator_args['require_template'] = require_template
         data_gen = self._generator(proteins=proteins,
                                    mode=tf.estimator.ModeKeys.PREDICT,
                                    epochs=1,
                                    dataset=dataset,
                                    family=family,
-                                   require_templates=require_templates,
                                    **data_generator_args)
 
         def custom_input_fn():
@@ -516,8 +515,8 @@ class ContactMapEstimator:
         return self.estimator.predict(self.eval_input_fn,
                                       yield_single_examples=True)
 
-    def get_custom_predictions_gen(self, proteins, dataset, family=None):
-        input_fn = self._get_custom_input_fn(proteins, dataset, family)
+    def get_custom_predictions_gen(self, proteins, dataset, family=None, require_template=True):
+        input_fn = self._get_custom_input_fn(proteins, dataset, family,require_template=require_template)
         return self.estimator.predict(input_fn,
                                       yield_single_examples=True)
 

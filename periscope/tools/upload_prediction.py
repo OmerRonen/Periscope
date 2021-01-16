@@ -57,6 +57,8 @@ def parse_args():
                         help='if true we generate the data in case it is missing', action="store_true")
     parser.add_argument('-d', '--three_d_model',
                         help='if true we generate 3d model', action="store_true")
+    parser.add_argument('-t', '--require_template',
+                        help='if true we require template for preidction', action="store_true")
 
     return parser.parse_args()
 
@@ -67,6 +69,7 @@ def main():
     proteins = args.proteins
     family = args.family
     get_d3_model = args.three_d_model
+    require_template = args.require_template
 
     if args.generate_data:
         for p in proteins:
@@ -79,7 +82,8 @@ def main():
     if family is not None:
         data_creator = DataCreator(proteins[0], family=family)
         proteins = list(data_creator._parse_msa().keys())[0:100]
-    predictions = get_model_predictions(model, proteins=proteins, family=family)
+    predictions = get_model_predictions(model, proteins=proteins, family=family,
+                                        require_template=require_template)
 
     _save_plot_matrices(model, predictions, family=family)
     if get_d3_model:
