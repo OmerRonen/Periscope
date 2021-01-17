@@ -47,7 +47,9 @@ def clean_hhblits():
     test = set(DATASETS_FULL.pfam) | set(DATASETS_FULL.membrane) | set(DATASETS_FULL.cameo) | set(DATASETS_FULL.cameo41)
     all_targets = train | test
     for t in all_targets:
-        shutil.rmtree(os.path.join(get_target_path(t), 'hhblits'))
+        old_dir = os.path.join(get_target_path(t), 'hhblits')
+        LOGGER.info(f'Removing {old_dir}')
+        shutil.rmtree(old_dir)
         t_path = os.path.join(get_target_path(t), 'hhblits_new')
         a3m_file = os.path.join(t_path, f'{t}.a3m')
         a2m_file = os.path.join(t_path, f'{t}.a2m')
