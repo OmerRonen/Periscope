@@ -64,6 +64,8 @@ def get_model_predictions(model: ContactMapEstimator, proteins=None, dataset=Non
     if os.path.isfile(prediction_file) and proteins is None:
         return pkl_load(prediction_file)
     if proteins is not None:
+        LOGGER.info(f'require template {require_template}')
+
         preds = list(model.get_custom_predictions_gen(proteins, dataset, family,
                                                       require_template=require_template))
     else:

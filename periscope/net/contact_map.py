@@ -462,6 +462,7 @@ class ContactMapEstimator:
         return dataset
 
     def _get_custom_input_fn(self, proteins, dataset, family=None, require_template=True):
+        LOGGER.info(f'require template {require_template}')
 
         data_generator_args = self._data_generator_args
         data_generator_args['require_template'] = require_template
@@ -518,6 +519,8 @@ class ContactMapEstimator:
                                       yield_single_examples=True)
 
     def get_custom_predictions_gen(self, proteins, dataset, family=None, require_template=True):
+        LOGGER.info(f'require template {require_template}')
+
         input_fn = self._get_custom_input_fn(proteins, dataset, family,require_template=require_template)
         return self.estimator.predict(input_fn,
                                       yield_single_examples=True)
