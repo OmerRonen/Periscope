@@ -61,7 +61,7 @@ def parse_args():
     parser.add_argument('-d', '--three_d_model',
                         help='if true we generate 3d model', action="store_true")
     parser.add_argument('-t', '--template_free',
-                        help='if true we do not require template for preidction', action="store_true")
+                        help='if true we do not require template for preidction', action="store_false")
 
     return parser.parse_args()
 
@@ -77,7 +77,7 @@ def main():
     family = args.family
     get_d3_model = args.three_d_model
 
-    require_template = not args.template_free
+    require_template = args.template_free
     LOGGER.info(f'require template {require_template}')
 
     if args.generate_data:
