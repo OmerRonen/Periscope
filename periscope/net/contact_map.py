@@ -471,6 +471,7 @@ class ContactMapEstimator:
                                    epochs=1,
                                    dataset=dataset,
                                    family=family,
+
                                    **data_generator_args)
 
         def custom_input_fn():

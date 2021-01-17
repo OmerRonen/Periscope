@@ -13,7 +13,7 @@ from periscope.utils.tm import model_modeller_tm_scores
 from periscope.utils.utils import check_path, pkl_save, get_target_dataset
 
 # logging.getLogger().setLevel(logging.CRITICAL)
-
+LOGGER = logging.getLogger(__name__)
 
 def _save_plot_matrices(model: ContactMapEstimator, predictions, family=None):
     for target in predictions['logits']:
@@ -69,6 +69,7 @@ def main():
     proteins = args.proteins
     family = args.family
     get_d3_model = args.three_d_model
+
     require_template = not args.template_free
 
     if args.generate_data:
