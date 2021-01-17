@@ -8,12 +8,14 @@ from argparse import ArgumentParser
 from periscope.analysis.analyzer import get_model_predictions
 from periscope.data.creator import DataCreator
 from periscope.net.contact_map import get_model_by_name, ContactMapEstimator
+from periscope.utils.constants import DATASETS
 from periscope.utils.drive import upload_folder
 from periscope.utils.tm import model_modeller_tm_scores
 from periscope.utils.utils import check_path, pkl_save, get_target_dataset
 
 # logging.getLogger().setLevel(logging.CRITICAL)
 LOGGER = logging.getLogger(__name__)
+
 
 def _save_plot_matrices(model: ContactMapEstimator, predictions, family=None):
     for target in predictions['logits']:
@@ -52,6 +54,7 @@ def parse_args():
     parser = ArgumentParser(description="Upload local folder to Google Drive")
     parser.add_argument('model', type=str, help='model name')
     parser.add_argument('proteins', nargs="+", help='target names')
+    parser.add_argument('-ds', '--dataset', type=str, help='dataset', default=None)
     parser.add_argument('-f', '--family', type=str, help='family', default=None)
     parser.add_argument('-g', '--generate_data',
                         help='if true we generate the data in case it is missing', action="store_true")
@@ -67,6 +70,10 @@ def main():
     args = parse_args()
     model_name = args.model
     proteins = args.proteins
+    dataset = args.dataset
+    if dataset is not None:
+        proteins = getattr(DATASETS, dataset)
+
     family = args.family
     get_d3_model = args.three_d_model
 

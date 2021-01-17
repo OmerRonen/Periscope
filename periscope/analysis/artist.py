@@ -530,10 +530,11 @@ def make_art(model_name, target, family=None):
     if data is None:
         return
     evaluate_pred_vs_ref(model_name, target, family)
+    evaluate_pred_vs_evo(model_name, target, family)
+    evaluate_pred_vs_raptor(model_name, target, family)
+
     evaluate_pred_roc(model_name, target, family)
     evaluate_pred_vs_modeller(model_name, target, family)
-    evaluate_pred_vs_raptor(model_name, target, family)
-    evaluate_pred_vs_evo(model_name, target, family)
     plot_weights(model_name, target, family=family)
     # plot_weights_old(model_name, target)
     #
