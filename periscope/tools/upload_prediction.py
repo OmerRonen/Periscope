@@ -71,6 +71,7 @@ def main():
     get_d3_model = args.three_d_model
 
     require_template = not args.template_free
+    LOGGER.info(f'require template {require_template}')
 
     if args.generate_data:
         for p in proteins:
