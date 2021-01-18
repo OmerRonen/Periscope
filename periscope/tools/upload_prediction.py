@@ -82,7 +82,7 @@ def main():
 
     if args.generate_data:
         for p in proteins:
-            data_creator = DataCreator(proteins[0], family=family)
+            data_creator = DataCreator(p, family=family)
             if not data_creator.has_msa:
                 data_creator.generate_data()
 
