@@ -1296,3 +1296,7 @@ class DataCreator:
         if ref_map is None:
             return
         return ref_map[0][0]
+
+    @property
+    def n_homs(self):
+        return self.aligner.n_homs

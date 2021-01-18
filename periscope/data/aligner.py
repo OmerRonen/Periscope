@@ -300,6 +300,10 @@ class Aligner:
         return ref_map
 
     @property
+    def n_homs(self):
+        return len(self.get_structures_msa())-1
+
+    @property
     def has_templates(self):
         has_tmplts = len(self.get_structures_msa()) > 1
         return has_tmplts
