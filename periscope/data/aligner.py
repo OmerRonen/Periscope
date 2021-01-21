@@ -252,7 +252,7 @@ class Aligner:
                 continue
             is_target = pdb_id == self.target
             id = pdb_id if is_target else uniprot_id
-            s = SeqRecord(Seq(re.sub('[a-z]', '-', str(seq.seq))), id=id)#SeqRecord(seq.seq, id=id)
+            s = SeqRecord(Seq(re.sub('[a-z]', '-', str(seq.seq))), id=id)  # SeqRecord(seq.seq, id=id)
             sequences[id] = s
 
         return sequences
@@ -274,11 +274,9 @@ class Aligner:
         ref_map = {}
 
         seq_msa_target = str(msa[target].seq)
-        ref_map_file = os.path.join(self._family_path,self.target, f'ref_map.pkl')
+        ref_map_file = os.path.join(self._family_path, self.target, f'ref_map.pkl')
         if os.path.isfile(ref_map_file):
             return pkl_load(ref_map_file)
-
-
 
         for uniprot in msa:
             seq_msa = str(msa[uniprot].seq)
@@ -302,7 +300,7 @@ class Aligner:
 
     @property
     def n_homs(self):
-        return len(self.get_structures_msa())-1
+        return len(self.get_structures_msa()) - 1
 
     @property
     def has_templates(self):
@@ -345,7 +343,7 @@ class Aligner:
 
         seq_id_mat = get_seq_dist_mat(self.target, unfiltered_msa)
         target_col_ind = np.where(seq_id_mat.index == self.target)[0][0]
-        target_seq_id = seq_id_mat.iloc[target_col_ind, ]
+        target_seq_id = seq_id_mat.iloc[target_col_ind,]
 
         to_keep = np.logical_or(target_seq_id < 0.95, target_seq_id.index == self.target)
         filtered_msa = [s for i, s in enumerate(unfiltered_msa) if to_keep[i]]
