@@ -2,6 +2,7 @@ import collections
 import itertools
 import logging
 import os
+import re
 import string
 import subprocess
 import tempfile
@@ -492,13 +493,14 @@ class DataCreator:
                 continue
             is_target = pdb_id == self.target
             id = pdb_id if is_target else uniprot_id
-            seq.seq = Seq(seq.seq.replace(string.lowercase, '-'))
+            # seq.seq = Seq(seq.seq.replace(string.lowercase, '-'))
             # print(len(seq.seq.upper()))
             # seq_arr = np.array(list(seq.seq))
             # seq_arr_upper = np.array(list(seq.seq.upper()))
             # seq_arr[seq_arr!=seq_arr_upper] = "-"
             # print(len(seq_arr))
-            s = SeqRecord(seq.seq, id=id)
+
+            s = SeqRecord(Seq(re.sub('[a-z]', '-', seq.seq)), id=id)#SeqRecord(seq.seq, id=id)
             sequences[id] = s
 
         return sequences
