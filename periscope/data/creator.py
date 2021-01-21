@@ -490,7 +490,9 @@ class DataCreator:
                 continue
             is_target = pdb_id == self.target
             id = pdb_id if is_target else uniprot_id
-            s = SeqRecord(seq.seq.upper(), id=id)
+            seq_arr =np.array(list(seq.seq))
+            seq_arr[seq_arr!=np.array(list(seq.seq.upper()))] = "-"
+            s = SeqRecord("".join(seq_arr), id=id)
             sequences[id] = s
 
         return sequences
