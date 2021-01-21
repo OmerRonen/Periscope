@@ -500,7 +500,7 @@ class DataCreator:
             # seq_arr[seq_arr!=seq_arr_upper] = "-"
             # print(len(seq_arr))
 
-            s = SeqRecord(Seq(re.sub('[a-z]', '-', str(seq.seq))), id=id)#SeqRecord(seq.seq, id=id)
+            s = SeqRecord(Seq(re.sub('[a-z]', '-', str(seq.seq))), id=id)  # SeqRecord(seq.seq, id=id)
             sequences[id] = s
 
         return sequences
@@ -538,7 +538,7 @@ class DataCreator:
         # fasta_seqs = list(SeqIO.parse(msa_file, "fasta", alphabet=Gapped(ExtendedIUPACProtein())))
         fasta_seqs = list(SeqIO.parse(msa_file, "fasta"))
         sequences = {
-            _get_id(seq): SeqRecord(Seq(re.sub('[a-z]', '-', str(seq.seq))),#seq.seq.upper()
+            _get_id(seq): SeqRecord(Seq(re.sub('[a-z]', '-', str(seq.seq))),  # seq.seq.upper()
                                     id=_get_id(seq).split("_")[0])
             for seq in fasta_seqs
         }
@@ -702,12 +702,12 @@ class DataCreator:
     @property
     def pwm_evo_ss(self):
         # acc_ss = np.mean(self._get_reference_ss_acc(), axis=2)
-        acc_ss_raw = self._fix_scores(self.aligner.templates_ss_acc_tensor)
+        acc_ss_raw = self.aligner.templates_ss_acc_tensor
         if acc_ss_raw is None:
             if self._require_template:
                 return
-            acc_ss_raw = np.zeros((len(self.protein.str_seq),9, self._n_refs ))
-        acc_ss_raw = self.trim_pad_arr(acc_ss_raw)
+            acc_ss_raw = np.zeros((self.seq_len, 9, self._n_refs))
+        acc_ss_raw = self.trim_pad_arr(self._fix_scores(acc_ss_raw))
 
         acc_ss = np.nanmean(acc_ss_raw, axis=2)
         return self._replace_nas(np.concatenate([self.pwm_evo, acc_ss], axis=-1))
