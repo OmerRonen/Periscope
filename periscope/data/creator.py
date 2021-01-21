@@ -538,7 +538,7 @@ class DataCreator:
         # fasta_seqs = list(SeqIO.parse(msa_file, "fasta", alphabet=Gapped(ExtendedIUPACProtein())))
         fasta_seqs = list(SeqIO.parse(msa_file, "fasta"))
         sequences = {
-            _get_id(seq): SeqRecord(Seq(re.sub('[a-z]', '-', seq.seq)),#seq.seq.upper()
+            _get_id(seq): SeqRecord(Seq(re.sub('[a-z]', '-', str(seq.seq))),#seq.seq.upper()
                                     id=_get_id(seq).split("_")[0])
             for seq in fasta_seqs
         }
