@@ -13,7 +13,6 @@ from periscope.utils.drive import upload_folder
 from periscope.utils.tm import model_modeller_tm_scores
 from periscope.utils.utils import check_path, pkl_save, get_target_dataset
 
-# logging.getLogger().setLevel(logging.CRITICAL)
 LOGGER = logging.getLogger(__name__)
 
 
@@ -90,7 +89,7 @@ def main():
 
     if family is not None:
         data_creator = DataCreator(proteins[0], family=family)
-        proteins = list(data_creator._parse_msa().keys())[0:100]
+        proteins = list(data_creator._parse_msa().keys())[0:5]
     predictions = get_model_predictions(model, proteins=proteins, family=family,
                                         require_template=require_template)
 
