@@ -2,6 +2,7 @@ import collections
 import itertools
 import logging
 import os
+import string
 import subprocess
 import tempfile
 import urllib
@@ -486,13 +487,18 @@ class DataCreator:
         sequences = {}
         for seq in fasta_seqs:
             uniprot_id, pdb_id = _get_id(seq)
+
             if uniprot_id in sequences or uniprot_id is None:
                 continue
             is_target = pdb_id == self.target
             id = pdb_id if is_target else uniprot_id
-            seq_arr =np.array(list(seq.seq))
-            seq_arr[seq_arr!=np.array(list(seq.seq.upper()))] = "-"
-            s = SeqRecord("".join(seq_arr), id=id)
+            seq.seq = Seq(seq.seq.replace(string.lowercase, '-'))
+            # print(len(seq.seq.upper()))
+            # seq_arr = np.array(list(seq.seq))
+            # seq_arr_upper = np.array(list(seq.seq.upper()))
+            # seq_arr[seq_arr!=seq_arr_upper] = "-"
+            # print(len(seq_arr))
+            s = SeqRecord(seq.seq, id=id)
             sequences[id] = s
 
         return sequences
@@ -637,9 +643,6 @@ class DataCreator:
             else:
                 fasta_file = get_aln_fasta(self.target, self._family)
                 subprocess.call(f'reformat.pl {fasta_file} {a3m_file}', shell=True)
-
-        def weights(msa):
-            return [1 / len(msa)] * len(msa)
 
         fasta_file = get_aln_fasta(self.target, self._family)
         fasta_seqs = list(SeqIO.parse(fasta_file, "fasta"))
