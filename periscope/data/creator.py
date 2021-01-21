@@ -682,7 +682,7 @@ class DataCreator:
         target_msa_seq_no_gaps = ''.join(self.target_seq_msa[inds])
         sub_ind = self.str_seq.find(target_msa_seq_no_gaps)
         rng = list(range(sub_ind, sub_ind + len(target_msa_seq_no_gaps)))
-        l = len(self.str_seq)
+        l = self.seq_len
 
         shp = [l] + list(score.shape[1:])
 
@@ -1033,7 +1033,7 @@ class DataCreator:
             target_msa_seq_no_gaps = ''.join(target_seq_arr[inds])
             sub_ind = self.str_seq.find(target_msa_seq_no_gaps)
             rng = list(range(sub_ind, sub_ind + len(target_msa_seq_no_gaps)))
-            l = len(self.str_seq)
+            l = self.seq_len
             ccmpred_mat = np.zeros(shape=(l, l))
             idx = np.array(rng)
             ccmpred_mat[idx[:, None], idx] = ccmpred_mat_slice
@@ -1210,14 +1210,17 @@ class DataCreator:
         return n_strucs
 
     @property
+    def seq_len(self):
+        return np.sum(self.target_seq_msa != '-') if self._family is not None else len(self.protein.str_seq)
+
+    @property
     def k_reference_dm_test(self):
 
         out = self.trim_pad_arr(self.aligner.templates_distance_tensor)
         return_zeros = not self._require_template and out is None
         if not return_zeros:
             return out
-        l = np.sum(self.target_seq_msa != '-') if self._family is not None else len(self.protein.str_seq)
-        zeros = np.zeros((l, l, self._n_refs))
+        zeros = np.zeros((self.seq_len, self.seq_len, self._n_refs))
         return zeros
 
     def trim_pad_arr(self, arr):
@@ -1245,7 +1248,7 @@ class DataCreator:
         return_zeros = not self._require_template and out is None
         if not return_zeros:
             return out
-        l = len(self.protein.str_seq)
+        l = self.seq_len
         zeros = np.zeros((l, 22, self._n_refs))
         return zeros
 
@@ -1256,7 +1259,7 @@ class DataCreator:
         return_zeros = not self._require_template and out is None
         if not return_zeros:
             return out
-        l = len(self.protein.str_seq)
+        l = self.seq_len
         zeros = np.zeros((l, 31, self._n_refs))
         return zeros
 
