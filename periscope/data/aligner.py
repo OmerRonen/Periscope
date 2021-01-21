@@ -1,5 +1,6 @@
 import itertools
 import os
+import re
 import tempfile
 
 import numpy as np
@@ -251,7 +252,7 @@ class Aligner:
                 continue
             is_target = pdb_id == self.target
             id = pdb_id if is_target else uniprot_id
-            s = SeqRecord(seq.seq.upper(), id=id)
+            s = SeqRecord(Seq(re.sub('[a-z]', '-', str(seq.seq))), id=id)#SeqRecord(seq.seq, id=id)
             sequences[id] = s
 
         return sequences
