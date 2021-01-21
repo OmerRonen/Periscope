@@ -288,7 +288,6 @@ class Aligner:
 
             if is_target or length_mismatch or all_gaps:
                 continue
-
             pdb = find_aligned_dm_uniprot(uniprot, seq_msa)
 
             if pdb is None or pdb == self.target:
