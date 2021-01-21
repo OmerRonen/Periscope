@@ -676,9 +676,12 @@ class DataCreator:
         sub_ind = self.str_seq.find(target_msa_seq_no_gaps)
         rng = list(range(sub_ind, sub_ind + len(target_msa_seq_no_gaps)))
         l = len(self.str_seq)
-        score_mat = np.zeros(shape=(l, score.shape[-1]))
+
+        shp = [l] + list(score.shape[1:])
+
+        score_mat = np.zeros(shape=shp)
         idx = np.array(rng)
-        score_mat[idx, :] = score
+        score_mat[idx, ...] = score
         return score_mat
 
     @property
