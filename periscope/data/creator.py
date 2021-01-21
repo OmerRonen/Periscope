@@ -1216,7 +1216,7 @@ class DataCreator:
         return_zeros = not self._require_template and out is None
         if not return_zeros:
             return out
-        l = len(self.protein.str_seq)
+        l = np.sum(self.target_seq_msa != '-') if self._family is not None else len(self.protein.str_seq)
         zeros = np.zeros((l, l, self._n_refs))
         return zeros
 
