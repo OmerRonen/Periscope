@@ -268,16 +268,17 @@ class Aligner:
             dict[str, str]: mapping from uniprot to pdb id
 
         """
-        ref_map_file = os.path.join(self._family_path, 'ref_map.pkl')
-        if os.path.isfile(ref_map_file):
-            return pkl_load(ref_map_file)
-
         msa = self._parse_msa()
         target = self.target
 
         ref_map = {}
 
         seq_msa_target = str(msa[target].seq)
+        ref_map_file = os.path.join(self._family_path, f'ref_map_{len(seq_msa_target)}.pkl')
+        if os.path.isfile(ref_map_file):
+            return pkl_load(ref_map_file)
+
+
 
         for uniprot in msa:
             seq_msa = str(msa[uniprot].seq)
