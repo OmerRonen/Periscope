@@ -60,6 +60,10 @@ def get_raptor_logits(target):
     return raptor_data[3]['CbCb']
 
 
+def get_quant(l, top=2):
+    return ((l - 2 * top) - 1) / (l - 1)
+
+
 def get_data(model_name, target, family=None):
     dataset = get_target_dataset(target) if family is None else family
     prediction_path = os.path.join(PATHS.drive, model_name, 'predictions', dataset, target)
@@ -273,7 +277,7 @@ def run_clustalo(sequences, fname, target=None, structures=None, family=None):
     valid_inds = np.array(list(msa[0].seq)) != '-'
     msa_short = []
     for h in msa_structures:
-        if len(h.seq) != len(msa_structures[0].seq): # we need the profile to be aligned
+        if len(h.seq) != len(msa_structures[0].seq):  # we need the profile to be aligned
             continue
         msa_short.append(SeqIO.SeqRecord(Seq("".join(np.array(list(h.seq))[valid_inds])),
                                          id=h.id, name=h.name, description=h.description))
@@ -643,7 +647,7 @@ def get_target_scores_file(target, family=None):
 
 def get_target_ccmpred_file(target, family=None):
     pth = get_target_path(target) if family is None else get_family_path(family)
-    ccmpred_path = os.path.join(pth , 'ccmpred_new')
+    ccmpred_path = os.path.join(pth, 'ccmpred_new')
     check_path(ccmpred_path)
     mat_name = f'{target}.mat' if family is None else f'{family}.mat'
     ccmpred_file = os.path.join(ccmpred_path, mat_name)
