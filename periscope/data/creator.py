@@ -500,7 +500,7 @@ class DataCreator:
             # seq_arr[seq_arr!=seq_arr_upper] = "-"
             # print(len(seq_arr))
 
-            s = SeqRecord(Seq(re.sub('[a-z]', '-', seq.seq)), id=id)#SeqRecord(seq.seq, id=id)
+            s = SeqRecord(Seq(re.sub('[a-z]', '-', str(seq.seq))), id=id)#SeqRecord(seq.seq, id=id)
             sequences[id] = s
 
         return sequences
