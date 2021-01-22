@@ -790,9 +790,9 @@ def save_model_predictions(model: ContactMapEstimator, protein, outfile):
 
 
 def save_model_analysis(model: ContactMapEstimator, proteins=None):
-    predictions = get_model_predictions(model, proteins=proteins)
+    predictions = model.predict(proteins=proteins)
     if proteins is None:
-        _get_top_category_accuracy_np(predictions['logits'], model.path, model.name, model.predict_data_manager.dataset)
+        get_top_category_accuracy_np(predictions['logits'], model.path, model.name, model.predict_data_manager.dataset)
 
     _save_plot_matrices(model, predictions)
 
@@ -802,7 +802,7 @@ def write_model_analysis(model, model_path, model_name, dataset, models=None, pl
         os.mkdir(model_path)
 
     predictions = get_model_predictions(model) if models is None else _get_average_prediction(models, dataset)
-    _get_top_category_accuracy_np(predictions['logits'], model_path, model_name, dataset)
+    get_top_category_accuracy_np(predictions['logits'], model_path, model_name, dataset)
     if plot:
         for target in predictions['cm'].keys():
             try:
@@ -943,7 +943,7 @@ def _get_accuracy_per_seq_dist(model_name, dataset):
     return accuracy_per_bin
 
 
-def _get_top_category_accuracy_np(logits, model_path, model_name, dataset):
+def get_top_category_accuracy_np(logits, model_path, model_name, dataset):
     logits = {k: v for k, v in logits.items() if v is not None}
     prediction_data = {}
 

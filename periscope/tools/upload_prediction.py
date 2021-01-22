@@ -5,7 +5,7 @@ import numpy as np
 
 from argparse import ArgumentParser
 
-from periscope.analysis.analyzer import get_model_predictions
+from periscope.analysis.analyzer import get_top_category_accuracy_np
 from periscope.data.creator import DataCreator
 from periscope.net.contact_map import get_model_by_name, ContactMapEstimator
 from periscope.utils.constants import DATASETS
@@ -90,8 +90,10 @@ def main():
     if family is not None:
         data_creator = DataCreator(proteins[0], family=family)
         proteins = list(data_creator._parse_msa().keys())[0:5]
-    predictions = get_model_predictions(model, proteins=proteins, family=family,
-                                        require_template=require_template)
+    predictions = model.predict(proteins=proteins, family=family, dataset=dataset)
+    if dataset is not None:
+        get_top_category_accuracy_np(predictions['logits'], model_path=model.path, model_name=model.name,
+                                     dataset=dataset)
 
     _save_plot_matrices(model, predictions, family=family)
     if get_d3_model:
