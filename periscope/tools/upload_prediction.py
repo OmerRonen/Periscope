@@ -52,7 +52,7 @@ def _save_plot_matrices(model: ContactMapEstimator, predictions, family=None):
 def parse_args():
     parser = ArgumentParser(description="Upload local folder to Google Drive")
     parser.add_argument('model', type=str, help='model name')
-    parser.add_argument('proteins', nargs="+", help='target names')
+    parser.add_argument('-p','--proteins', nargs="+", help='target names')
     parser.add_argument('-ds', '--dataset', type=str, help='dataset', default=None)
     parser.add_argument('-f', '--family', type=str, help='family', default=None)
     parser.add_argument('-g', '--generate_data',
