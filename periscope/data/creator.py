@@ -673,6 +673,11 @@ class DataCreator:
         if not os.path.isfile(scores_file):
             self._save_scores()
 
+        scores = pkl_load(scores_file)
+
+        if scores['conservation'].shape[0] != self.seq_len:
+            self._save_scores()
+
         return pkl_load(scores_file)
 
     def _fix_scores(self, score):

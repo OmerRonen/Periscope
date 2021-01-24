@@ -8,7 +8,7 @@ from argparse import ArgumentParser
 from periscope.analysis.analyzer import get_top_category_accuracy_np
 from periscope.data.creator import DataCreator
 from periscope.net.contact_map import get_model_by_name, ContactMapEstimator
-from periscope.utils.constants import DATASETS
+from periscope.utils.constants import DATASETS, DATASETS_FULL
 from periscope.utils.drive import upload_folder
 from periscope.utils.tm import model_modeller_tm_scores
 from periscope.utils.utils import check_path, pkl_save, get_target_dataset
@@ -71,7 +71,7 @@ def main():
     proteins = args.proteins
     dataset = args.dataset
     if dataset is not None:
-        proteins = getattr(DATASETS, dataset)
+        proteins = getattr(DATASETS_FULL, dataset)
 
     family = args.family
     get_d3_model = args.three_d_model
