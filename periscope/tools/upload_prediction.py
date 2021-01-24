@@ -91,8 +91,10 @@ def main():
 
     if family is not None:
         data_creator = DataCreator(proteins[0], family=family)
-        for i in range(50):
-            proteins = list(data_creator._parse_msa().keys())[(i*20):((i+1)*20)]
+        all_proteins = proteins = list(data_creator._parse_msa().keys())
+        n_batches = int(len(all_proteins)/20)
+        for i in range(n_batches):
+            all_proteins[(i*20):((i+1)*20)]
             predictions = model.predict(proteins=proteins, family=family, dataset=dataset)
             _save_plot_matrices(model, predictions, family=family)
         return
