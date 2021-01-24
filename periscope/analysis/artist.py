@@ -442,7 +442,7 @@ def evaluate_pred_roc(model_name, target, family):
     l = gt.shape[0]
     mask = _get_mask(l)
     pred_logits = data['prediction'] * mask
-    refs = data['refs_contacts'] * mask
+    refs = data['refs_contacts'] * mask if data['refs_contacts'] is not None else np.zeros_like(mask)
     r_logits = get_raptor_logits(target)
     raptor_logits = r_logits * mask if r_logits is not None else np.zeros_like(mask)
 
