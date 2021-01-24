@@ -89,7 +89,7 @@ def main():
 
     if family is not None:
         data_creator = DataCreator(proteins[0], family=family)
-        proteins = list(data_creator._parse_msa().keys())
+        proteins = list(data_creator._parse_msa().keys())[0:1000]
     predictions = model.predict(proteins=proteins, family=family, dataset=dataset)
     if dataset is not None:
         get_top_category_accuracy_np(predictions['logits'], model_path=model.path, model_name=model.name,
