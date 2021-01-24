@@ -26,7 +26,6 @@ def _save_plot_matrices(model: ContactMapEstimator, predictions, family=None):
         check_path(target_path)
         dc = DataCreator(target, family=family)
         refs_contacts = dc.refs_contacts
-        data['refs_contacts'] = refs_contacts
         # pd.DataFrame(refs_contacts).to_csv(os.path.join(target_path, 'refs_contacts.csv'))
         prediction = np.squeeze(predictions['logits'][target])
         data['prediction'] = prediction
@@ -39,12 +38,15 @@ def _save_plot_matrices(model: ContactMapEstimator, predictions, family=None):
             gt = None
         data['gt'] = gt
         # pd.DataFrame(gt).to_csv(os.path.join(target_path, 'gt.csv'))
-        data['alignment'] = dc.templates_aln
-        # data['evfold'] = dc.evfold
-        data['ccmpred'] = dc.ccmpred
-        data['templates'] = dc.k_reference_dm_test
-        data['seqs'] = dc.seq_refs_ss_acc
-        data['beff'] = dc.beff
+        if family is None:
+            data['alignment'] = dc.templates_aln
+            # data['evfold'] = dc.evfold
+            data['ccmpred'] = dc.ccmpred
+            data['templates'] = dc.k_reference_dm_test
+            data['seqs'] = dc.seq_refs_ss_acc
+            data['beff'] = dc.beff
+            data['refs_contacts'] = refs_contacts
+
         pkl_save(os.path.join(target_path, 'data.pkl'), data)
         upload_folder(target_path, target_path.split('Periscope/')[-1])
 
