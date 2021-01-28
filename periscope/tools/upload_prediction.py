@@ -89,7 +89,8 @@ def main():
             data_creator = DataCreator(p, family=family)
             try:
                 data_creator.generate_data()
-            except PermissionError:
+            except Exception:
+                LOGGER.info(f'Problem with {p}')
                 continue
     model = get_model_by_name(model_name)
 
