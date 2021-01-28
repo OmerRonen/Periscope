@@ -87,8 +87,10 @@ def main():
     if args.generate_data:
         for p in proteins:
             data_creator = DataCreator(p, family=family)
-            data_creator.generate_data()
-
+            try:
+                data_creator.generate_data()
+            except PermissionError:
+                continue
     model = get_model_by_name(model_name)
 
     if family is not None:
