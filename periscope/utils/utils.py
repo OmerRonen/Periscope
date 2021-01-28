@@ -244,7 +244,7 @@ def pkl_load(filename):
 def get_target_dataset(target, family=None):
     if family is not None:
         return family
-    datasets = 'train eval pfam cameo membrane cameo41'.split(' ')
+    datasets = 'pfam cameo membrane cameo41 train eval'.split(' ')
     for d in datasets:
         if target in getattr(DATASETS_FULL, d):
             return d
