@@ -15,7 +15,7 @@ import pickle
 import time
 import logging
 
-from .constants import PATHS, LOCAL, DATASETS, N_REFS
+from .constants import PATHS, LOCAL, DATASETS, N_REFS, DATASETS_FULL
 
 LOGGER = logging.getLogger(__name__)
 warnings.simplefilter('ignore', yaml.YAMLLoadWarning)
@@ -246,7 +246,7 @@ def get_target_dataset(target, family=None):
         return family
     datasets = 'train eval pfam cameo membrane cameo41'.split(' ')
     for d in datasets:
-        if target in getattr(DATASETS, d):
+        if target in getattr(DATASETS_FULL, d):
             return d
 
 

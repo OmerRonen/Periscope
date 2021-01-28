@@ -20,6 +20,9 @@ def _save_plot_matrices(model: ContactMapEstimator, predictions, family=None):
     for target in predictions['logits']:
         data = {}
         ds = get_target_dataset(target) if family is None else family
+        if ds is None:
+            LOGGER.info(f'Problem with {target}')
+            continue
         data_path = os.path.join(model.path, 'predictions', ds)
         check_path(data_path)
         target_path = os.path.join(data_path, target)

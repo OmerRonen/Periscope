@@ -984,32 +984,86 @@ def calculate_accuracy(logits, gt):
 
     return categories
 
+def get_cm(logits, l):
+    quant = _get_quant(l, 2)
+
+    logits *= _get_mask(l)
+    thres = np.quantile(logits[np.triu_indices(l)], quant)
+    cm = np.where(logits >= thres, 1, 0)
+    return cm, thres
+
+def _get_accuracy(prediction, gt):
+    prediction_mat_triu = np.clip(prediction[np.triu_indices(
+        prediction.shape[0])],
+                                  a_min=0,
+                                  a_max=1)
+    target_cm_triu = gt[np.triu_indices(gt.shape[0])]
+
+    acc = np.round(np.mean(target_cm_triu[prediction_mat_triu > 0]), 2)
+    return acc
+
+
+def get_top_2l_acc(logits, gt):
+    l = int(logits.shape[0])
+    cm_hat, _ = get_cm(logits, l)
+    acc = _get_accuracy(cm_hat, gt)
+    return acc
 
 def accuracy_short(model, datasets):
     acc_short = {'RaptorX': {'mean': None, "std": None}, 'Periscope': {'mean': None, "std": None},
                  "diff": {'mean': None, "std": None}}
-    acc_vec = []
-    acc_vec_raptor = []
+    acc_vec = {}
+    acc_vec_raptor = {}
     for dataset in datasets:
-        acc_raw = _get_acc_raw(model, dataset)
-        categories = acc_raw['categories']
-        categories_raptor = acc_raw['categories_raptor']
+        acc = _get_acc_raw_2l(model, dataset)
+        acc_vec = {**acc['Periscope'], **acc_vec}
+        acc_vec_raptor = {**acc['Raptor'], **acc_vec_raptor}
 
-        ds_acc = list(itertools.chain.from_iterable([list(categories[c][2].values()) for c in ['M', 'S', "L"]]))
-        ds_acc_r = list(itertools.chain.from_iterable([list(categories_raptor[c][2].values()) for c in ['M', 'S', "L"]]))
-
-        acc_vec += ds_acc
-        acc_vec_raptor += ds_acc_r
+        # ds_acc = list(itertools.chain.from_iterable([list(categories[c][2].values()) for c in ['M', 'S', "L"]]))
+        # ds_acc_r = list(itertools.chain.from_iterable([list(categories_raptor[c][2].values()) for c in ['M', 'S', "L"]]))
+        #
+        # acc_vec += ds_acc
+        # acc_vec_raptor += ds_acc_r
+    acc_vec_raptor = np.array(list(acc_vec_raptor.values()))
+    acc_vec = np.array(list(acc_vec.values()))
 
     acc_short['RaptorX']['mean'] = np.mean(acc_vec_raptor)
     acc_short['RaptorX']['std'] = np.std(acc_vec_raptor)
-    acc_short['Periscope']['mean'] = np.mean(ds_acc)
-    acc_short['Periscope']['std'] = np.std(ds_acc)
+    acc_short['Periscope']['mean'] = np.mean(acc_vec)
+    acc_short['Periscope']['std'] = np.std(acc_vec)
     diff_vec = np.array(acc_vec_raptor) - np.array(acc_vec)
     acc_short['diff']['mean'] = np.mean(diff_vec)
     acc_short['diff']['std'] = np.std(diff_vec)
 
-    print(acc_short)
+    LOGGER.info(f"\n\n{acc_short}")
+
+
+def _get_acc_raw_2l(model, dataset):
+    prediction_data = {}
+    ds_path = os.path.join(PATHS.models, model.name, 'predictions', dataset)
+    accuracy_out = {'Periscope':{}, 'Raptor':{}, "Diff":{}}
+    for target in os.listdir(ds_path):
+        target_ds = get_target_dataset(target)
+        if target_ds is None:
+            continue
+        data = get_data(model.name, target)
+        raptor_logits = get_raptor_logits(target)
+        if raptor_logits is None:
+            continue
+        logits = data['prediction']
+        if len(logits.shape) > 2 and logits.shape[-1] > 1:
+            logits = np.sum(logits[..., 0: int(logits.shape[-1] / 2)], axis=-1)
+        gt = data['gt']
+        prediction_data[target] = (logits, gt, raptor_logits)
+        acc = get_top_2l_acc(logits=logits, gt=gt)
+        acc_raptor = get_top_2l_acc(logits=raptor_logits, gt=gt)
+        accuracy_out['Periscope'][target] = acc
+        accuracy_out['Raptor'][target] = acc_raptor
+        accuracy_out['Diff'][target] = acc- acc_raptor
+
+    LOGGER.info(pd.DataFrame(accuracy_out).sort_values('Diff', ascending=False).head(7))
+
+    return accuracy_out
 
 
 def _get_acc_raw(model, dataset):

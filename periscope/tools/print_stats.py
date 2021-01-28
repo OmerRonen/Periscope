@@ -56,7 +56,9 @@ def _plot_acc_vs_msa(dataset, model_name):
         plot_data['RaptorX'].append(acc_raptor)
         plot_data['beff'].append(np.log(float(data['beff'])))
         templates = data['templates']
-        n_refs = np.sum(np.max(np.max(templates, axis=0), axis=0) > 0)
+        n_refs = 0
+        if templates is not None:
+            n_refs = np.sum(np.max(np.max(templates, axis=0), axis=0) > 0)
         plot_data['# of Templates'].append(n_refs)
         plot_data['Templates Relative Weight'].append(_get_templates_relative_contribution(data))
 
@@ -133,10 +135,10 @@ def _plot_acc_vs_msa(dataset, model_name):
 
 
 def main():
-    print(get_datasets_pre_post())
+    # print(get_datasets_pre_post())
     args = parse_args()
     model = args.model
-    datasets = ['membrane', 'cameo41', 'cameo']
+    datasets = ['pfam']
     accuracy_short(get_model_by_name(model), datasets)
     # tm = get_tm_stats(['membrane', 'cameo41', 'cameo'], model)
     # LOGGER.info(f'{model} average tm is {tm}')
