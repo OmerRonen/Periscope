@@ -50,7 +50,7 @@ def _plot_acc_vs_msa(dataset, model_name):
         logits = data['prediction']
         gt = data['gt']
         acc = calc_accuracy(pred=logits, gt=gt, top=0.5)
-        acc_raptor = calc_accuracy(pred=raptor_logits, gt=gt, top=0.5)
+        acc_raptor = calc_accuracy(pred=raptor_logits, gt=gt, top=0.5) if raptor_logits is not None else 0
 
         plot_data['Periscope'].append(acc)
         plot_data['RaptorX'].append(acc_raptor)
@@ -138,7 +138,7 @@ def main():
     # print(get_datasets_pre_post())
     args = parse_args()
     model = args.model
-    datasets = ['pfam']
+    datasets = args.datasets
     accuracy_short(get_model_by_name(model), datasets)
     # tm = get_tm_stats(['membrane', 'cameo41', 'cameo'], model)
     # LOGGER.info(f'{model} average tm is {tm}')

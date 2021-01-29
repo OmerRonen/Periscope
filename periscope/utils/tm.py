@@ -27,7 +27,9 @@ def model_modeller_tm_scores(model_name, target, fast=False, sswt=5, selectrr='2
     dc = DataCreator(target)
 
     model = get_model_by_name(model_name, dataset)
-    logits = get_model_predictions(model, proteins=[target])['logits'].get(target, None)
+    logits = model.predict(proteins=[target],  dataset=dataset)['logits'].get(target, None)
+
+    # logits = get_model_predictions(model, proteins=[target])
     if logits is None:
         return
     dataset = model.predict_data_manager.dataset if dataset is None else dataset

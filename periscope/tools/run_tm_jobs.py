@@ -12,7 +12,7 @@ def parse_args():
     parser.add_argument('-d', '--dataset', type=str, help='dataset name', default=None)
     parser.add_argument('-p', '--proteins', nargs='+', default=[], help='proteins')
     parser.add_argument('-s', '--sswt', type=str, help='secondary structure weight', default='5')
-    parser.add_argument('-r', '--selectrr', type=str, help='number of restraints', default='all')
+    parser.add_argument('-r', '--selectrr', type=str, help='number of restraints', default='2.0L')
 
     return parser.parse_args()
 
