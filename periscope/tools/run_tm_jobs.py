@@ -36,6 +36,7 @@ def main():
                 fh.writelines(f"#SBATCH --output={os.path.join(PATHS.periscope, 'slurm_scripts', target + '.tmout')}\n")
                 fh.writelines("#SBATCH --time=100:0:0\n")
                 fh.writelines("#SBATCH --mem=32g\n")
+                fh.writelines("#SBATCH -M hm\n")
                 fh.writelines("#SBATCH --mail-type=FAIL\n")
                 fh.writelines("#SBATCH --mail-user=omer.ronen@mail.huji.ac.il\n")
                 fh.writelines(
