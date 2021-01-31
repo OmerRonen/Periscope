@@ -299,8 +299,8 @@ def _get_target_tm(target, model, full=False, sswt=5, dataset=None, selectrr='2.
 
     check_path(outdir)
     with tempfile.TemporaryDirectory() as d:
-        _run_cns(target, model, d.name, sswt, selectrr, dataset, full)
-        predicted_pdb_tmp = os.path.join(d.name, 'stage1', f'{target}_model1.pdb')
+        _run_cns(target, model, d, sswt, selectrr, dataset, full)
+        predicted_pdb_tmp = os.path.join(d, 'stage1', f'{target}_model1.pdb')
         copyfile(predicted_pdb_tmp, predicted_pdb)
 
     pred_pdb = f'{target}_pred.pdb'
