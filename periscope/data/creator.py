@@ -10,6 +10,8 @@ import urllib
 
 import numpy as np
 import pandas as pd
+from Bio import Alphabet
+from Bio.Alphabet import generic_protein
 
 from scipy.special import softmax
 from Bio import SeqIO, pairwise2
@@ -325,13 +327,15 @@ class DataCreator:
 
         template_protein, template_chain = reference[0:4], reference[4]
 
-        mod_args = f'{self.protein.protein}  {self.protein.chain} {template_protein} {template_chain} {n_structures}'
+        mod_args = f'{self.protein.protein} {self.protein.chain} {template_protein} {template_chain} {n_structures}'
 
         # saving target in pir format
-        target_seq = SeqIO.SeqRecord(Seq(''.join(self.protein.sequence)),
-                                     name='sequence:%s:::::::0.00: 0.00' % self.target, id=self.target, description='')
+        name = 'sequence:%s:::::::0.00: 0.00' % self.target
+        description = f'P1;{self.target}'
+        target_seq = SeqIO.SeqRecord(Seq(self.protein.str_seq, alphabet=generic_protein),
+                                     name=name, id=self.target, )
         # SeqIO.PirIO.PirWriter(open(os.path.join(periscope_path, '%s.ali'%self.target), 'w'))
-        SeqIO.write(target_seq, os.path.join(os.getcwd(), '%s.ali' % self.target), 'pir')
+        SeqIO.write(target_seq, os.path.join(os.getcwd(), '%s.ali' % self.target), format='pir')
         modeller_python = '/cs/staff/dina/modeller9.18/bin/modpy.sh python3'
         cmd = f'{modeller_python} -m periscope.data.modeller.run_modeller {mod_args}'
         try:
