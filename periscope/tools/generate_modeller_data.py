@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 from ..data.creator import DataCreator
 from ..net.contact_map import get_model_by_name
-from ..utils.constants import DATASETS, N_REFS
+from ..utils.constants import DATASETS, N_REFS, DATASETS_FULL
 
 
 def parse_args():
@@ -14,7 +14,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    dataset = getattr(DATASETS, args.dataset)
+    dataset = getattr(DATASETS_FULL, args.dataset)
     model = get_model_by_name(args.model_name)
     for target in dataset:
         try:
