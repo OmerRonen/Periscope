@@ -294,7 +294,7 @@ def _run_cns(target, model, outdir, sswt, selectrr, dataset, full):
 def _get_target_tm(target, model, full=False, sswt=5, dataset=None, selectrr='2.0L'):
     dataset = model.predict_data_manager.dataset if dataset is None else dataset
     confold_dir = '/vol/sci/bio/data/or.zuk/projects/ContactMaps/src/confold_v1.0/test/output'
-    outdir = os.path.join(confold_dir, f'cns_{sswt}_{selectrr.replace(".", "_")}', dataset, target)
+    outdir = os.path.join(model.path,'cns' , target)
 
     check_path(outdir)
     _run_cns(target, model, outdir, sswt, selectrr, dataset, full)
