@@ -26,6 +26,8 @@ LOGGER = logging.getLogger(__name__)
 def model_modeller_tm_scores(model_name, target, fast=False, sswt=5, selectrr='2.0L'):
     dataset = get_target_dataset(target)
     dc = DataCreator(target)
+    if not dc.has_refs:
+        return
 
     model = get_model_by_name(model_name, dataset)
     logits = model.predict(proteins=[target], dataset=dataset)['logits'].get(target, None)
