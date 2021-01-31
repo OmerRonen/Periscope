@@ -329,11 +329,22 @@ class DataCreator:
 
         # saving target in pir format
         name = 'sequence:%s:::::::0.00: 0.00' % self.target
-        description = f'P1;{self.target}'
-        target_seq = SeqIO.SeqRecord(Seq(self.protein.str_seq, alphabet=generic_protein),
+        target_seq = SeqIO.SeqRecord(Seq(self.protein.str_seq),
                                      name=name, id=self.target, )
         # SeqIO.PirIO.PirWriter(open(os.path.join(periscope_path, '%s.ali'%self.target), 'w'))
-        SeqIO.write(target_seq, os.path.join(os.getcwd(), '%s.ali' % self.target), format='pir')
+        ali_file = os.path.join(os.getcwd(), '%s.ali' % self.target)
+        SeqIO.write(target_seq, ali_file, format='pir')
+        with open(ali_file) as f:
+            lines = f.readlines()
+
+        # lines  # ['This is the first line.\n', 'This is the second line.\n']
+
+        lines[0] = lines[0].replace("XX", "P1")
+
+        # lines  # ["This is the line that's replaced.\n", 'This is the second line.\n']
+
+        with open(ali_file, "w") as f:
+            f.writelines(lines)
         modeller_python = '/cs/staff/dina/modeller9.18/bin/modpy.sh python3'
         cmd = f'{modeller_python} -m periscope.data.modeller.run_modeller {mod_args}'
         try:
