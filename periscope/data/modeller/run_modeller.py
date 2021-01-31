@@ -6,7 +6,7 @@ import sys
 import subprocess
 import logging
 
-src_path = '/cs/zbio/orzuk/projects/ContactMaps/src/Periscope'
+src_path = '/vol/sci/bio/data/or.zuk/projects/ContactMaps/src/Periscope'
 modeller_path = os.path.join(src_path, 'data', 'modeller')
 pdb_path = ''
 

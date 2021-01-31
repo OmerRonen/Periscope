@@ -316,8 +316,8 @@ class DataCreator:
             return
 
         version = self._MODELLER_VERSION
-
-        reference = self.metadata['references_map'][self.closest_reference][0][0]
+        ref_map = self.aligner.get_ref_map()
+        reference = ref_map[self.closest_reference]
 
         if reference is None:
             LOGGER.info('Reference not found for %s' % self.target)
