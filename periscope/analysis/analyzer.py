@@ -984,6 +984,7 @@ def calculate_accuracy(logits, gt):
 
     return categories
 
+
 def get_cm(logits, l):
     quant = _get_quant(l, 2)
 
@@ -991,6 +992,7 @@ def get_cm(logits, l):
     thres = np.quantile(logits[np.triu_indices(l)], quant)
     cm = np.where(logits >= thres, 1, 0)
     return cm, thres
+
 
 def _get_accuracy(prediction, gt):
     prediction_mat_triu = np.clip(prediction[np.triu_indices(
@@ -1008,6 +1010,7 @@ def get_top_2l_acc(logits, gt):
     cm_hat, _ = get_cm(logits, l)
     acc = _get_accuracy(cm_hat, gt)
     return acc
+
 
 def accuracy_short(model, datasets):
     acc_short = {'RaptorX': {'mean': None, "std": None}, 'Periscope': {'mean': None, "std": None},
@@ -1041,12 +1044,14 @@ def accuracy_short(model, datasets):
 def _get_acc_raw_2l(model, dataset):
     prediction_data = {}
     ds_path = os.path.join(PATHS.models, model.name, 'predictions', dataset)
-    accuracy_out = {'Periscope':{}, 'Raptor':{}, "Diff":{}}
+    accuracy_out = {'Periscope': {}, 'Raptor': {}, "Diff": {}}
     for target in os.listdir(ds_path):
         target_ds = get_target_dataset(target)
         if target_ds is None:
             continue
         data = get_data(model.name, target)
+        if data is None:
+            continue
         raptor_logits = get_raptor_logits(target)
         if raptor_logits is None:
             continue
@@ -1056,10 +1061,11 @@ def _get_acc_raw_2l(model, dataset):
         gt = data['gt']
         prediction_data[target] = (logits, gt, raptor_logits)
         acc = get_top_2l_acc(logits=logits, gt=gt)
-        acc_raptor = get_top_2l_acc(logits=raptor_logits, gt=gt)
+        valid_raptor = raptor_logits is not None and raptor_logits.shape[0] == gt.shape[0]
+        acc_raptor = get_top_2l_acc(logits=raptor_logits, gt=gt) if valid_raptor else 0
         accuracy_out['Periscope'][target] = acc
         accuracy_out['Raptor'][target] = acc_raptor
-        accuracy_out['Diff'][target] = acc- acc_raptor
+        accuracy_out['Diff'][target] = acc - acc_raptor
 
     LOGGER.info(pd.DataFrame(accuracy_out).sort_values('Diff', ascending=False).head(7))
 
@@ -1118,7 +1124,11 @@ def _get_acc_raw(model, dataset):
 
             logits_cat = logits[inds]
             gt_cat = gt[inds]
-            logits_raptor_cat = logits_raptor[inds]
+            try:
+                logits_raptor_cat = logits_raptor[inds]
+            except IndexError:
+                logits_raptor_cat = np.zeros_like(logits)
+
             sorted_gt = pd.DataFrame({'gt': gt_cat, 'pred': logits_cat}).sort_values('pred', ascending=False).loc[:,
                         'gt'].values
             sorted_gt_raptor = pd.DataFrame({'gt': gt_cat, 'pred': logits_raptor_cat}).sort_values('pred',

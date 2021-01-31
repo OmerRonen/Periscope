@@ -96,7 +96,7 @@ def main():
 
     if family is not None:
         data_creator = DataCreator(proteins[0], family=family)
-        all_proteins = list(data_creator._parse_msa().keys())
+        all_proteins = list(data_creator._parse_msa().keys())[1000:]
         n_batches = int(len(all_proteins)/20)
         for i in range(n_batches):
             proteins = all_proteins[(i*20):((i+1)*20)]
