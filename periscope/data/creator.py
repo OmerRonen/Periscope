@@ -1184,8 +1184,8 @@ class DataCreator:
         n_strucs = len(structures)
 
         structures = structures if self._n_refs >= n_strucs else structures[n_strucs - self._n_refs:n_strucs]
-
-        templates_list = [self.metadata['references_map'][s][0][0] for s in structures]
+        ref_map = self.aligner.get_ref_map()
+        templates_list = [ref_map[s] for s in structures]
         templates_list = [t for t in templates_list if len(Protein(t[0:4], t[4]).str_seq) > 0]
 
         def _get_record(t):
