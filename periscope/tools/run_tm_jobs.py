@@ -41,7 +41,9 @@ def main():
                 fh.writelines(
                     f"python3 -m periscope.tools.calculate_model_tm -n {model_name} -t {target} -r {r} -s {s}")
 
-            os.system("sbatch %s" % f.name)
+            # os.system("sbatch %s" % f.name)
+            os.system("sbatch %s" % f)
+
 
 
 if __name__ == '__main__':
