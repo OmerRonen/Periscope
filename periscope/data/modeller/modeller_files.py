@@ -10,7 +10,7 @@ n_structures = int(sys.argv[4])
 
 files_path = sys.argv[5]
 modeller_path = sys.argv[6]
-src_path = '/cs/zbio/orzuk/projects/ContactMaps/src/Periscope'
+src_path = '/vol/sci/bio/data/or.zuk/projects/ContactMaps/src/Periscope'
 target = target_protein + target_chain
 
 

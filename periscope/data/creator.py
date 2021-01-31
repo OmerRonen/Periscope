@@ -296,6 +296,7 @@ class DataCreator:
                 LOGGER.info(f'{os.path.isfile(pred_pdb)}')
                 if not os.path.isfile(pred_pdb):
                     return
+            check_path(outpath)
 
             modeller_python = '/cs/staff/dina/modeller9.18/bin/modpy.sh python3'
             cmd = f'{modeller_python} -m periscope.data.modeller.run_modeller_templates {args}'
