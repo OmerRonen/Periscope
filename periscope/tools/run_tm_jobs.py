@@ -31,7 +31,7 @@ def main():
             # with open(f.name, 'w') as fh:
         if True:
             with (open(f, 'w')) as fh:
-                fh.writelines("#!/bin/bash\n")
+                fh.writelines("#!/usr/bin/env bash\n")
                 fh.writelines("#SBATCH --job-name=%s_tm\n" % target)
                 fh.writelines(f"#SBATCH --output={os.path.join(PATHS.periscope, 'slurm_scripts', target + '.tmout')}\n")
                 fh.writelines("#SBATCH --time=100:0:0\n")
