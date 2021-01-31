@@ -192,7 +192,8 @@ class DataCreator:
         # msa = self._parse_msa()
         structures = list(self.sorted_structures.index)
         structures = structures if len(structures) <= self._n_refs else structures[0:self._n_refs]
-        templates_list = [self.metadata['references_map'][s][0][0] for s in structures]
+        ref_map = self.aligner.get_ref_map()
+        templates_list = [ref_map[s] for s in structures]
         LOGGER.info(structures)
 
         def _get_description(target):
