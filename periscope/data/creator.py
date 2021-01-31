@@ -66,7 +66,7 @@ class DataCreator:
             self.str_seq = "".join(self.target_seq_msa[self.target_seq_msa != '-']) if seq is None else seq
         self._n_refs = n_refs
         self.metadata = self._get_metadata()
-        self.has_refs = self.sorted_structures is not None if self.has_msa else False
+        self.has_refs = self.aligner.has_templates
         self.refactored = self.metadata['refactored']
         self.recreated = self.metadata.get('new_data', False)
         if not os.path.isfile(self.fasta_fname):
