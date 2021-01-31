@@ -26,8 +26,10 @@ def main():
     s = args.sswt
 
     for target in targets:
-        with tempfile.NamedTemporaryFile(suffix='.sh') as f:
-            with open(f.name, 'w') as fh:
+        #with tempfile.NamedTemporaryFile(suffix='.sh') as f:
+        with os.path.join(PATHS.periscope, 'slurm_scripts', target+'.sh') as f:
+            # with open(f.name, 'w') as fh:
+            with (open(f, 'w')) as fh:
                 fh.writelines("#!/bin/bash\n")
                 fh.writelines("#SBATCH --job-name=%s_tm\n" % target)
                 fh.writelines(f"#SBATCH --output={os.path.join(PATHS.periscope, 'slurm_scripts', target + '.tmout')}\n")
