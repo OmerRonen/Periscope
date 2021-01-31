@@ -293,7 +293,7 @@ def _run_cns(target, model, outdir, sswt, selectrr, dataset, full):
 
 def _get_target_tm(target, model, full=False, sswt=5, dataset=None, selectrr='2.0L'):
     dataset = model.predict_data_manager.dataset if dataset is None else dataset
-    outdir = os.path.join(model.path, 'cns', target)
+    outdir = os.path.join(model.path, 'cns', dataset, target)
 
     check_path(outdir)
     _run_cns(target, model, outdir, sswt, selectrr, dataset, full)
