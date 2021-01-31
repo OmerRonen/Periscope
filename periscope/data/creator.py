@@ -1326,10 +1326,11 @@ class DataCreator:
 
     @property
     def closest_pdb(self):
-        ref_map = self.metadata['references_map'].get(self.closest_reference, None)
-        if ref_map is None:
-            return
-        return ref_map[0][0]
+        self.aligner.closest_template
+        # ref_map = self.metadata['references_map'].get(self.closest_reference, None)
+        # if ref_map is None:
+        #     return
+        # return ref_map[0][0]
 
     @property
     def n_homs(self):
