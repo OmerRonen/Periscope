@@ -424,7 +424,7 @@ class Aligner:
         return ss_acc_target
 
     @property
-    def known_structure(self):
+    def known_structures(self):
         return list(self.get_ref_map().keys())
 
     @property
