@@ -43,7 +43,7 @@ class DataCreator:
     SEQUENCE_LENGTH_THRESHOLD = 50
     _MODELLER_VERSION = MODELLER_VERSION
     _STRUCTURES_VERSION = 3
-    _PHYLO_VERSION = 6
+    _PHYLO_VERSION = 7
     _THRESHOLD = 8
 
     def __init__(self, target, n_refs=N_REFS, family=None, require_template=True):
