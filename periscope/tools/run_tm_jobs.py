@@ -27,8 +27,9 @@ def main():
 
     for target in targets:
         #with tempfile.NamedTemporaryFile(suffix='.sh') as f:
-        with os.path.join(PATHS.periscope, 'slurm_scripts', target+'.sh') as f:
+        f = os.path.join(PATHS.periscope, 'slurm_scripts', target+'.sh')
             # with open(f.name, 'w') as fh:
+        if True:
             with (open(f, 'w')) as fh:
                 fh.writelines("#!/bin/bash\n")
                 fh.writelines("#SBATCH --job-name=%s_tm\n" % target)
