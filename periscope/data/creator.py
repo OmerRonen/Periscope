@@ -57,6 +57,7 @@ class DataCreator:
         self._msa_data_path = os.path.join(get_target_path(target, family), 'features')
         check_path(self._msa_data_path)
         self.target = target
+        self.aligner = Aligner(self.target, self._family)
         self.has_msa = os.path.isfile(get_aln_fasta(self.target, self._family))
         if self._family is not None:
             LOGGER.info(f'Family {self._family}')
@@ -70,7 +71,6 @@ class DataCreator:
         self.recreated = self.metadata.get('new_data', False)
         if not os.path.isfile(self.fasta_fname):
             self._write_fasta()
-        self.aligner = Aligner(self.target, self._family)
         self._require_template = require_template
         LOGGER.info(f'require_template {self._require_template}')
 
