@@ -93,7 +93,7 @@ def main():
                 LOGGER.info(f'Problem with {p}')
                 continue
     model = get_model_by_name(model_name)
-    preds_path = os.path.join(PATHS.periscope, 'models', model_name, family)
+    preds_path = os.path.join(PATHS.periscope, 'models', model_name, 'predictions', family)
 
     if family is not None:
         data_creator = DataCreator(proteins[0], family=family)
