@@ -903,7 +903,7 @@ class DataCreator:
 
     @property
     def known_structures(self):
-        return self.aligner.known_structures
+        return [self.target] + self.aligner.known_structures
 
     def _get_phylo_structures_mat(self):
 
