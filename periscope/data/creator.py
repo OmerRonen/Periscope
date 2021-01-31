@@ -10,8 +10,6 @@ import urllib
 
 import numpy as np
 import pandas as pd
-from Bio import Alphabet
-from Bio.Alphabet import generic_protein
 
 from scipy.special import softmax
 from Bio import SeqIO, pairwise2
