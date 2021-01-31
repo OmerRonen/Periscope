@@ -308,7 +308,7 @@ class Aligner:
 
     @property
     def has_templates(self):
-        has_tmplts = len(self.get_structures_msa()) > 1
+        has_tmplts = self.n_homs > 1
         return has_tmplts
 
     def _get_clustalo_msa_raw(self):
@@ -357,6 +357,12 @@ class Aligner:
         filtered_msa_sorted = [filtered_msa[ind] for ind in arg_sort]
 
         return filtered_msa_sorted
+
+    @property
+    def closest_template(self):
+        if not self.has_templates:
+            return
+        return self.get_structures_msa()[1].id
 
     @property
     def templates_distance_tensor(self):
@@ -416,6 +422,10 @@ class Aligner:
         pkl_save(fname, ss_acc_target)
 
         return ss_acc_target
+
+    @property
+    def known_structure(self):
+        return list(self.get_ref_map().keys())
 
     @property
     def templates_ss_acc_seq_tensor(self):

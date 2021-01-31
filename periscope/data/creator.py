@@ -43,7 +43,7 @@ class DataCreator:
     SEQUENCE_LENGTH_THRESHOLD = 50
     _MODELLER_VERSION = MODELLER_VERSION
     _STRUCTURES_VERSION = 3
-    _PHYLO_VERSION = 5
+    _PHYLO_VERSION = 6
     _THRESHOLD = 8
 
     def __init__(self, target, n_refs=N_REFS, family=None, require_template=True):
@@ -87,7 +87,7 @@ class DataCreator:
     @property
     def sorted_structures(self):
         structures_sorted_file = os.path.join(
-            self._msa_data_path, 'structures_sorted_2.pkl')
+            self._msa_data_path, 'structures_sorted_3.pkl')
 
         sorted_structures = pkl_load(structures_sorted_file)
 
@@ -903,7 +903,7 @@ class DataCreator:
 
     @property
     def known_structures(self):
-        return list(self.metadata['references_map'].keys())
+        return self.aligner.known_structures
 
     def _get_phylo_structures_mat(self):
 
