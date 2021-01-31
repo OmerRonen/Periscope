@@ -3,6 +3,7 @@ import logging
 import os
 import subprocess
 import tempfile
+from shutil import copyfile
 
 import numpy as np
 from Bio import pairwise2
@@ -294,10 +295,14 @@ def _run_cns(target, model, outdir, sswt, selectrr, dataset, full):
 def _get_target_tm(target, model, full=False, sswt=5, dataset=None, selectrr='2.0L'):
     dataset = model.predict_data_manager.dataset if dataset is None else dataset
     outdir = os.path.join(model.path, 'cns', dataset, target)
+    predicted_pdb = os.path.join(outdir, 'stage1', f'{target}_model1.pdb')
 
     check_path(outdir)
-    _run_cns(target, model, outdir, sswt, selectrr, dataset, full)
-    predicted_pdb = os.path.join(outdir, 'stage1', f'{target}_model1.pdb')
+    with tempfile.TemporaryDirectory as d:
+        _run_cns(target, model, d.name, sswt, selectrr, dataset, full)
+        predicted_pdb_tmp = os.path.join(d.name, 'stage1', f'{target}_model1.pdb')
+        copyfile(predicted_pdb_tmp, predicted_pdb)
+
     pred_pdb = f'{target}_pred.pdb'
     save_chain_pdb(target, pred_pdb, predicted_pdb, 0)
 
