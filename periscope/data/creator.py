@@ -95,7 +95,6 @@ class DataCreator:
             return sorted_structures
 
         struc_dm = self._get_phylo_structures_mat()
-        print(struc_dm)
         if struc_dm is None:
             return
         struc_dm = struc_dm.loc[self.target, :]
