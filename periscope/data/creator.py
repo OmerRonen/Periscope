@@ -87,7 +87,7 @@ class DataCreator:
     @property
     def sorted_structures(self):
         structures_sorted_file = os.path.join(
-            self._msa_data_path, 'structures_sorted_3.pkl')
+            self._msa_data_path, 'structures_sorted_tst.pkl')
 
         sorted_structures = pkl_load(structures_sorted_file)
 
