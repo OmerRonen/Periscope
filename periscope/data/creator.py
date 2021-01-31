@@ -272,7 +272,8 @@ class DataCreator:
 
         aln_txt = self._get_modeller_pir()
         structures = list(self.sorted_structures.index)
-        templates_list = [self.metadata['references_map'][s][0][0] for s in structures]
+        ref_map = self.aligner.get_ref_map()
+        templates_list = [ref_map[s] for s in structures]
         templates_list = templates_list if len(templates_list) <= self._n_refs else templates_list[0:self._n_refs]
         templates = " ".join(templates_list)
         version = self._MODELLER_VERSION
