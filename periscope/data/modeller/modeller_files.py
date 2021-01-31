@@ -40,7 +40,7 @@ files_to_remove = [
     os.path.join(files_path, f) for f in files
     if f.endswith('.pdb') or f.endswith('sch') or 'D00000' in f
     or 'V9999' in f or f.endswith('rsr') or f.endswith('ali')
-    or f.endswith('ini') or f.endswith('ent')
+    or f.endswith('ini') or f.endswith('ent') and target in f
 ]
 for file in files_to_remove:
     os.remove(file)
