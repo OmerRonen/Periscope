@@ -27,7 +27,7 @@ def model_modeller_tm_scores(model_name, target, fast=False, sswt=5, selectrr='2
     dc = DataCreator(target)
 
     model = get_model_by_name(model_name, dataset)
-    logits = model.predict(proteins=[target],  dataset=dataset)['logits'].get(target, None)
+    logits = model.predict(proteins=[target], dataset=dataset)['logits'].get(target, None)
 
     # logits = get_model_predictions(model, proteins=[target])
     if logits is None:
@@ -294,7 +294,7 @@ def _run_cns(target, model, outdir, sswt, selectrr, dataset, full):
 def _get_target_tm(target, model, full=False, sswt=5, dataset=None, selectrr='2.0L'):
     dataset = model.predict_data_manager.dataset if dataset is None else dataset
     confold_dir = '/vol/sci/bio/data/or.zuk/projects/ContactMaps/src/confold_v1.0/test/output'
-    outdir = os.path.join(confold_dir, f'cns_{sswt}_{selectrr.replace(".", "_")}', dataset, target)
+    outdir = os.path.join(confold_dir, f'cns_{sswt}_{selectrr.replace(".", "_")}', dataset, target, model.name)
 
     check_path(outdir)
     _run_cns(target, model, outdir, sswt, selectrr, dataset, full)
