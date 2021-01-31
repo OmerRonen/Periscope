@@ -8,7 +8,7 @@ from argparse import ArgumentParser
 from periscope.analysis.analyzer import get_top_category_accuracy_np
 from periscope.data.creator import DataCreator
 from periscope.net.contact_map import get_model_by_name, ContactMapEstimator
-from periscope.utils.constants import DATASETS, DATASETS_FULL
+from periscope.utils.constants import DATASETS, DATASETS_FULL, PATHS
 from periscope.utils.drive import upload_folder
 from periscope.utils.tm import model_modeller_tm_scores
 from periscope.utils.utils import check_path, pkl_save, get_target_dataset
@@ -93,13 +93,14 @@ def main():
                 LOGGER.info(f'Problem with {p}')
                 continue
     model = get_model_by_name(model_name)
+    preds_path = os.path.join(PATHS.periscope, 'models', model_name, family)
 
     if family is not None:
         data_creator = DataCreator(proteins[0], family=family)
         all_proteins = list(data_creator._parse_msa().keys())[1000:]
         n_batches = int(len(all_proteins)/20)
         for i in range(n_batches):
-            proteins = all_proteins[(i*20):((i+1)*20)]
+            proteins = [p for p in all_proteins[(i*20):((i+1)*20)] if not os.path.exists(os.path.join(preds_path, p))]
             predictions = model.predict(proteins=proteins, family=family, dataset=dataset)
             _save_plot_matrices(model, predictions, family=family)
         return
