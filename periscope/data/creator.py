@@ -1326,7 +1326,7 @@ class DataCreator:
 
     @property
     def closest_pdb(self):
-        self.aligner.closest_template
+        return self.aligner.closest_template
         # ref_map = self.metadata['references_map'].get(self.closest_reference, None)
         # if ref_map is None:
         #     return

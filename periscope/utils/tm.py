@@ -51,6 +51,7 @@ def model_modeller_tm_scores(model_name, target, fast=False, sswt=5, selectrr='2
     tm_modeller = get_modeller_tm_score(target, templates=templates)
     LOGGER.info(f'modeller score with starting point for {target}:\n')
     tm_modeller_sp = get_modeller_tm_score(target, templates=True, sp=True)
+    LOGGER.info(f"Ref is {dc.closest_pdb}")
     LOGGER.info(f'reference score for {target}:\n')
     tm_ref = get_ref_tm_score(target, dc.closest_pdb)
 
