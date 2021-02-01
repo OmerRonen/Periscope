@@ -100,9 +100,12 @@ def main():
         all_proteins = list(data_creator._parse_msa().keys())[1000:]
         n_batches = int(len(all_proteins)/20)
         for i in range(n_batches):
-            LOGGER.info(os.path.exists(os.path.join(preds_path, p)))
-            LOGGER.info(os.path.join(preds_path, p))
-            proteins = [p for p in all_proteins[(i*20):((i+1)*20)] if not os.path.exists(os.path.join(preds_path, p))]
+            proteins = []
+            for p in all_proteins[(i*20):((i+1)*20)]:
+                LOGGER.info(os.path.exists(os.path.join(preds_path, p)))
+                LOGGER.info(os.path.join(preds_path, p))
+                if not os.path.exists(os.path.join(preds_path, p)):
+                    proteins.append(p)
             predictions = model.predict(proteins=proteins, family=family, dataset=dataset)
             _save_plot_matrices(model, predictions, family=family)
         return
