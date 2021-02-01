@@ -104,8 +104,9 @@ def main():
             for p in all_proteins[(i*20):((i+1)*20)]:
                 LOGGER.info(os.path.exists(os.path.join(preds_path, p)))
                 LOGGER.info(os.path.join(preds_path, p))
-                if not os.path.exists(os.path.join(preds_path, p)):
-                    proteins.append(p)
+                if  os.path.exists(os.path.join(preds_path, p)):
+                    continue
+                proteins.append(p)
             predictions = model.predict(proteins=proteins, family=family, dataset=dataset)
             _save_plot_matrices(model, predictions, family=family)
         return
