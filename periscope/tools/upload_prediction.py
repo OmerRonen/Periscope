@@ -57,7 +57,7 @@ def _save_plot_matrices(model: ContactMapEstimator, predictions, family=None):
 def parse_args():
     parser = ArgumentParser(description="Upload local folder to Google Drive")
     parser.add_argument('model', type=str, help='model name')
-    parser.add_argument('-p','--proteins', nargs="+", help='target names')
+    parser.add_argument('-p', '--proteins', nargs="+", help='target names')
     parser.add_argument('-ds', '--dataset', type=str, help='dataset', default=None)
     parser.add_argument('-f', '--family', type=str, help='family', default=None)
     parser.add_argument('-g', '--generate_data',
@@ -98,13 +98,13 @@ def main():
     if family is not None:
         data_creator = DataCreator(proteins[0], family=family)
         all_proteins = list(data_creator._parse_msa().keys())[1000:]
-        n_batches = int(len(all_proteins)/20)
+        n_batches = int(len(all_proteins) / 20)
         for i in range(n_batches):
             proteins = []
-            for p in all_proteins[(i*20):((i+1)*20)]:
+            for p in all_proteins[(i * 20):((i + 1) * 20)]:
                 LOGGER.info(os.path.exists(os.path.join(preds_path, p)))
                 LOGGER.info(os.path.join(preds_path, p))
-                if  os.path.exists(os.path.join(preds_path, p)):
+                if os.path.exists(os.path.join(preds_path, p)):
                     continue
                 proteins.append(p)
             predictions = model.predict(proteins=proteins, family=family, dataset=dataset)
