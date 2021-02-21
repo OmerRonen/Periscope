@@ -3,7 +3,7 @@ import itertools
 import logging
 import os
 import re
-import string
+import time
 import subprocess
 import tempfile
 import urllib
@@ -25,7 +25,7 @@ from ..utils.utils import (convert_to_aln, write_fasta, MODELLER_VERSION, create
                            pkl_save, pkl_load, compute_structures_identity_matrix, VERSION, get_modeller_pdb_file,
                            get_target_path, get_target_ccmpred_file, check_path, read_fasta, run_clustalo,
                            get_aln_fasta, get_predicted_pdb, save_chain_pdb, get_a3m_fname, get_target_scores_file,
-                           get_target_hhblits_path)
+                           get_target_hhblits_path, get_fasta_fname)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -47,9 +47,11 @@ class DataCreator:
     _PHYLO_VERSION = 7
     _THRESHOLD = 8
 
-    def __init__(self, target, n_refs=N_REFS, family=None, require_template=True):
+    def __init__(self, target, n_refs=N_REFS, family=None, require_template=True, train=True):
+        s = time.time()
         self.protein = Protein(target[0:4], target[4])
         self.str_seq = self.protein.str_seq
+        self._train = train
         try:
             self._is_broken = not hasattr(self.protein, 'sequence')
         except Exception:
@@ -58,8 +60,11 @@ class DataCreator:
         self._msa_data_path = os.path.join(get_target_path(target, family), 'features')
         check_path(self._msa_data_path)
         self.target = target
-        self.aligner = Aligner(self.target, self._family)
         self.has_msa = os.path.isfile(get_aln_fasta(self.target, self._family))
+        if not self.has_msa and train:
+            self.has_refs = False
+            return
+        self.aligner = Aligner(self.target, self._family)
         if self._family is not None:
             LOGGER.info(f'Family {self._family}')
             self.target_seq_msa = np.array(list(self._parse_msa()[self.target]))
@@ -67,19 +72,21 @@ class DataCreator:
             self.str_seq = "".join(self.target_seq_msa[self.target_seq_msa != '-']) if seq is None else seq
         self._n_refs = n_refs
         self.metadata = self._get_metadata()
-        self.has_refs = self.aligner.has_templates
+
+        self.has_refs = self.aligner.has_templates if self.has_msa else False
         self.refactored = self.metadata['refactored']
         self.recreated = self.metadata.get('new_data', False)
         if not os.path.isfile(self.fasta_fname):
             self._write_fasta()
         self._require_template = require_template
-        LOGGER.info(f'require_template {self._require_template}')
+        LOGGER.info(f'init took {time.time()-s}')
 
     def generate_data(self):
         self.ccmpred
         self.aligner.templates_ss_acc_seq_tensor
         self.aligner.templates_distance_tensor
         self.pwm_w
+        self.raptor_properties
 
     @property
     def msa_length(self):
@@ -131,7 +138,7 @@ class DataCreator:
             if f not in self._get_required_files() and not _is_struc_file(f):
                 os.remove(os.path.join(self._msa_data_path, f))
 
-    def _get_no_target_gaps_msa(self):
+    def get_no_target_gaps_msa(self, sub=False):
 
         msa_file = get_aln_fasta(self.target, self._family)
 
@@ -139,7 +146,7 @@ class DataCreator:
             self._run_hhblits()
 
         fasta_seqs = self._parse_msa()
-        if self._family is not None :
+        if self._family is not None and not sub:
             return list(fasta_seqs.values())
         target_seq_full = fasta_seqs[self.target]
         target_seq_no_gap_inds = [i for i in range(len(target_seq_full)) if target_seq_full[i] != '-']
@@ -149,9 +156,10 @@ class DataCreator:
             seq.seq = Seq(''.join(seq.seq[i] for i in inds))
             return seq
 
-        assert target_seq == self.protein.str_seq
+        assert target_seq == self.protein.str_seq if self._family is None else self.str_seq
 
-        fasta_seqs_short = [_slice_seq(s, target_seq_no_gap_inds) for s in fasta_seqs.values()]
+        fasta_seqs_short = [_slice_seq(s, target_seq_no_gap_inds) for s in fasta_seqs.values() if s.id != self.target]
+        fasta_seqs_short = [_slice_seq(fasta_seqs[self.target], target_seq_no_gap_inds)]+fasta_seqs_short
         return fasta_seqs_short
 
     def _get_cover(self, ref):
@@ -363,7 +371,7 @@ class DataCreator:
 
     def _run_ccmpred(self):
 
-        msa = self._get_no_target_gaps_msa()
+        msa = self.get_no_target_gaps_msa()
         if self._family == 'trypsin':
             l = len(self.target_seq_msa)
             msa = [m for m in msa if len(m) == l]
@@ -407,19 +415,19 @@ class DataCreator:
 
     @property
     def fasta_fname(self):
-        return os.path.join(get_target_path(self.target), self.target + '.fasta')
+        return get_fasta_fname(self.target, self._family)
 
     def _write_fasta(self):
-        if self.protein.str_seq is None:
+        s = self.protein.str_seq if self._family is None else self.str_seq
+        if s is None:
             return
-        seq = Seq(self.protein.str_seq.upper())
+        seq = Seq(s.upper())
         sequence = SeqIO.SeqRecord(seq, name=self.target, id=self.target)
-        query = os.path.join(get_target_path(self.target), self.target + '.fasta')
-        SeqIO.write(sequence, query, "fasta")
+        SeqIO.write(sequence, self.fasta_fname, "fasta")
 
     def _run_hhblits(self):
         # Generates multiple sequence alignment using hhblits
-        if self.protein.str_seq is None:
+        if self.protein.str_seq is None or self._train:
             return
         seq = Seq(self.protein.str_seq.upper())
 
@@ -624,7 +632,9 @@ class DataCreator:
         seq_target_file = os.path.join(self._msa_data_path, 'target_seq.pkl')
 
         if os.path.isfile(seq_target_file):
-            return np.squeeze(pkl_load(seq_target_file))
+            loaded_seq = np.squeeze(pkl_load(seq_target_file))
+            if loaded_seq.shape[0] == self.seq_len:
+                return loaded_seq
 
         bow_msa_target = np.squeeze(self._bow_msa(refs=[self.target]))
 
@@ -689,6 +699,8 @@ class DataCreator:
         scores_file = get_target_scores_file(self.target, self._family)
 
         if not os.path.isfile(scores_file):
+            if self._train:
+                return
             self._save_scores()
 
         scores = pkl_load(scores_file)
@@ -1040,7 +1052,13 @@ class DataCreator:
 
     @property
     def raptor_properties(self):
-        return get_properties(self.target)
+        msa = None if self._family is None else self.get_no_target_gaps_msa(sub=True)
+        prop = get_properties(self.target, family=self._family, train=self._train, msa=msa)
+        if prop is None:
+            return
+        if prop.shape[0] != self.seq_target.shape[0]:
+            return
+        return prop
 
     @property
     def ccmpred(self):

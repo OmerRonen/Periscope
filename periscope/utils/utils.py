@@ -606,10 +606,8 @@ def yaml_load(filename):
     return data_loaded
 
 
-def get_fasta_fname(target, full):
-    if full:
-        return os.path.join(PATHS.msa, 'query', target + '_full.fasta')
-    return os.path.join(get_target_path(target), f'{target}.fasta')
+def get_fasta_fname(target, family=None):
+    return os.path.join(get_target_path(target, family), f'{target}.fasta')
 
 
 def get_family_path(family):
@@ -661,7 +659,9 @@ def get_target_evfold_file(target):
     return os.path.join(get_target_path(target), 'evfold', f'{target}_v2.pkl')
 
 
-def get_target_hhblits_path(target):
+def get_target_hhblits_path(target, family=None):
+    if family is not None:
+        return get_target_path(target, family)
     return os.path.join(get_target_path(target), 'hhblits_new')
 
 

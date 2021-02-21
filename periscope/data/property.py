@@ -7,7 +7,7 @@ import numpy as np
 
 from periscope.utils.constants import PATHS
 from periscope.utils.utils import (get_target_hhblits_path, get_target_path, pkl_load, get_a3m_fname, get_aln_fasta,
-                                   get_target_dataset, check_path, pkl_save)
+                                   get_target_dataset, check_path, pkl_save, get_fasta_fname, write_fasta)
 
 CATEGORIES = {'ss8': ["H", "G", "I", "E", "B", "T", "S", "L"],
               "diso": [".", "*"],
@@ -18,28 +18,44 @@ Features = namedtuple(
     'ss8 diso acc')
 
 
-def _get_property_path(target):
-    return os.path.join(get_target_path(target), "property")
+def _get_property_path(target, family=None):
+    return os.path.join(get_target_path(target, family=family), "property")
 
 
-def _run_property(target):
-    pth = get_target_hhblits_path(target)
-    fasta_file = os.path.join(pth, f'{target}.fasta')
-    a3m_aln = get_a3m_fname(target)
+def run_tgt(target, family, tgt_file, msa):
+    # dc = DataCreator(target, family=family, train=False)
+
+    fasta_file = get_fasta_fname(target, family)
+    a3m_aln = get_a3m_fname(target, family=family)
 
     if not os.path.isfile(a3m_aln):
-        reformat = f'reformat.pl {get_aln_fasta(target)} {a3m_aln}'
+        reformat = f'reformat.pl {get_aln_fasta(target, family=family)} {a3m_aln}'
         subprocess.call(reformat, shell=True)
-    tgt_path = os.path.join(PATHS.periscope, 'data', get_target_dataset(target))
+    d = tempfile.TemporaryDirectory()
+    if family:
+        tmp_fasta = os.path.join(d.name, 'f.fasta')
+        subprocess.run(f"cp {fasta_file} {tmp_fasta}", shell=True)
+        fasta_file = tmp_fasta
+        temp_fasta = os.path.join(d.name, 'msa.fasta')
+        write_fasta(msa, temp_fasta)
+        tmp_a3m = os.path.join(d.name, 'f.a3m')
+
+        reformat = f'reformat.pl {temp_fasta} {tmp_a3m}'
+        subprocess.call(reformat, shell=True)
+        # subprocess.run(f"cp {a3m_aln} {tmp_a3m}",shell=True)
+        a3m_aln = tmp_a3m
+
+    cmd = f'A3M_To_TGT -i {fasta_file} -I {a3m_aln} -o {tgt_file} -t {d.name}'
+    subprocess.run(cmd, shell=True, cwd=os.path.join(PATHS.src, 'TGT_Package'))
+
+
+def _run_property(target, family=None, msa=None):
+    tgt_path = os.path.join(PATHS.periscope, 'data', get_target_dataset(target, family=family))
     check_path(tgt_path)
     tgt_file = os.path.join(tgt_path, f'{target}.tgt')
-
-    cmd = f'A3M_To_TGT -i {fasta_file} -I {a3m_aln} -o {tgt_file}'
-    subprocess.run(cmd, shell=True, cwd=os.path.join(PATHS.src, 'TGT_Package'))
-    os.remove(a3m_aln)
-
+    run_tgt(target,family, tgt_file, msa=msa)
     predict_property = os.path.join(PATHS.src, "Predict_Property", "Predict_Property.sh")
-    property_path = _get_property_path(target)
+    property_path = _get_property_path(target, family)
     cmd = f'{predict_property} -i {tgt_file} -o {property_path}'
     subprocess.run(cmd, shell=True)
 
@@ -67,24 +83,26 @@ def load_fasta(fname, return_txt=False):
     return _catorical_arr(property_arr, categories)
 
 
-def _get_prop_fasta(prop, target):
-    return os.path.join(_get_property_path(target), f'{target}_{prop}')
+def _get_prop_fasta(prop, target, family=None):
+    return os.path.join(_get_property_path(target, family), f'{target}_{prop}')
 
 
-def get_properties(target):
-    fname = get_raptor_properties_fname(target)
-    if os.path.isfile(fname):
-        pkl_load(fname)
-    pth = _get_property_path(target)
+def get_properties(target, train, family=None, msa=None):
+    pth = _get_property_path(target, family)
     if not os.path.exists(pth):
-        _run_property(target)
+        if train:
+            return
+        _run_property(target, family, msa=msa)
     prop_arr = []
     for p in ['acc', 'ss8', 'diso']:
         fl = os.path.join(pth, f"{target}.{p}_simp")
+        if not os.path.isfile(fl):
+            return
         prop_arr.append(load_fasta(fl))
-    prop_raptor = np.concatenate(prop_arr, axis=1)
-    pkl_save(fname, prop_raptor)
-    return prop_raptor
+    try:
+        return np.concatenate(prop_arr, axis=1)
+    except Exception:
+        return
 
 
 def get_raptor_ss_fname(target):

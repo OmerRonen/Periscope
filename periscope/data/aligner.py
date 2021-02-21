@@ -347,6 +347,9 @@ class Aligner:
             list: list of ordered valid sequneces
 
         """
+        fname = os.path.join(self._msa_data_path, "s_msa.pkl")
+        if os.path.isfile(fname):
+            return pkl_load(fname)
         unfiltered_msa = self._get_clustalo_msa_raw()
 
         seq_id_mat = get_seq_dist_mat(self.target, unfiltered_msa)
@@ -360,6 +363,7 @@ class Aligner:
 
         arg_sort = np.array(target_seq_id_filtered.argsort()[::-1])
         filtered_msa_sorted = [filtered_msa[ind] for ind in arg_sort]
+        pkl_save(data=filtered_msa_sorted, filename=fname)
 
         return filtered_msa_sorted
 

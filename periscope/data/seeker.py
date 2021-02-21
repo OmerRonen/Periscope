@@ -265,6 +265,19 @@ class DataSeeker:
         ref_dm = self._get_ref_dm(reference)
         return self._replace_nas(ref_dm)
 
+    def trim_pad_arr(self, arr):
+        if arr is None:
+            return
+        n_strucs = int(arr.shape[-1])
+        if n_strucs < self._n_refs:
+            shape = list(arr.shape)
+            shape[-1] = self._n_refs - n_strucs
+            zero_array = np.zeros(shape)
+
+            arr_out = np.concatenate([zero_array, arr], axis=2)
+        if n_strucs >= self._n_refs:
+            arr_out = arr[..., (n_strucs - self._n_refs): n_strucs]
+        return self._replace_nas(arr_out)
     @property
     def k_reference_dm(self):
 

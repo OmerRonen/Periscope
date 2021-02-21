@@ -22,7 +22,7 @@ Features = namedtuple(
     'target_pdb_cm target_pdb_dm evfold  '
     'reference_dm  k_reference_dm k_reference_dm_conv '
     'seq_target seq_refs seq_target_pssm seq_refs_pssm ccmpred seq_target_pssm_ss seq_refs_pssm_ss seq_target_ss '
-    'seq_refs_ss pwm_w pwm_evo conservation beff')
+    'seq_refs_ss pwm_w pwm_evo conservation beff properties_target')
 
 FEATURES = Features(
     target_pdb_cm='target_pdb_cm',
@@ -43,7 +43,8 @@ FEATURES = Features(
     pwm_w='pwm_w',
     pwm_evo='pwm_evo',
     conservation='conservation',
-    beff='beff'
+    beff='beff',
+    properties_target='properties_target'
 )
 
 PROTEIN_BOW_DIM = 22
@@ -110,7 +111,7 @@ NUM_HOMOLOGOUS = 500
 Architectures = namedtuple('Architectures',
                            'conv references_resnet multi_structure multi_structure_pssm multi_structure_ccmpred'
                            ' multi_structure_ccmpred_2 ms_ccmpred_pssm ms_ss_ccmpred_pssm ms_ss_ccmpred ms_ss_ccmpred_2'
-                           ' periscope periscope2 templates evo')
+                           ' periscope periscope2 templates evo periscope_properties')
 
 ARCHS = Architectures(conv='conv',
                       references_resnet='references_resnet',
@@ -125,7 +126,8 @@ ARCHS = Architectures(conv='conv',
                       periscope='periscope',
                       periscope2='periscope2',
                       templates='templates',
-                      evo='evo')
+                      evo='evo',
+                      periscope_properties="periscope_properties")
 
 Datasets = namedtuple('Datasets', 'train eval pfam testing cameo membrane cameo41')
 
