@@ -3,14 +3,17 @@ import logging
 import os
 import subprocess
 import tempfile
+from shutil import copyfile
 
 import numpy as np
 from Bio import pairwise2
 
 from .utils import (check_path, get_fasta_fname, get_target_dataset, yaml_save, get_modeller_pdb_file, get_aln_fasta,
-                    yaml_load, get_a3m_fname, save_chain_pdb)
+                    yaml_load, get_a3m_fname, save_chain_pdb, pkl_save, get_target_path, pkl_load,
+                    get_target_hhblits_path)
 from ..analysis.analyzer import get_model_predictions
 from ..data.creator import DataCreator
+from ..data.property import get_raptor_ss3_txt
 from ..net.contact_map import ContactMapEstimator, get_model_by_name
 from ..utils.constants import PATHS, DATASETS
 from ..utils.protein import Protein
@@ -25,9 +28,13 @@ LOGGER = logging.getLogger(__name__)
 def model_modeller_tm_scores(model_name, target, fast=False, sswt=5, selectrr='2.0L'):
     dataset = get_target_dataset(target)
     dc = DataCreator(target)
+    if not dc.has_refs:
+        return
 
     model = get_model_by_name(model_name, dataset)
-    logits = get_model_predictions(model, proteins=[target])['logits'].get(target, None)
+    logits = model.predict(proteins=[target], dataset=dataset)['logits'].get(target, None)
+
+    # logits = get_model_predictions(model, proteins=[target])
     if logits is None:
         return
     dataset = model.predict_data_manager.dataset if dataset is None else dataset
@@ -37,9 +44,15 @@ def model_modeller_tm_scores(model_name, target, fast=False, sswt=5, selectrr='2
     tm_model = target_tm_f(target, model, sswt=sswt, selectrr=selectrr)
 
     LOGGER.info(f'modeller score for {target}:\n')
-    tm_modeller = get_modeller_tm_score(target, templates=True)
+    templates = True
+    modeller_pdb = get_modeller_pdb_file(target, templates=templates, n_struc=1, sp=False)
+    if not os.path.isfile(modeller_pdb):
+        dc.run_modeller_templates(n_structures=1)
+
+    tm_modeller = get_modeller_tm_score(target, templates=templates)
     LOGGER.info(f'modeller score with starting point for {target}:\n')
     tm_modeller_sp = get_modeller_tm_score(target, templates=True, sp=True)
+    LOGGER.info(f"Ref is {dc.closest_pdb}")
     LOGGER.info(f'reference score for {target}:\n')
     tm_ref = get_ref_tm_score(target, dc.closest_pdb)
 
@@ -148,36 +161,7 @@ def _save_rr_file(model: ContactMapEstimator, full):
             f.write(txt)
 
 
-def _get_raptor_ss3_txt(target, full=False):
-    fasta_file = get_fasta_fname(target, full)
-    a3m_aln = get_a3m_fname(target)
 
-    if not os.path.isfile(a3m_aln):
-        reformat = ['reformat.pl', get_aln_fasta(target), a3m_aln]
-        subprocess.run(reformat)
-
-    tgt_file = os.path.join(PATHS.periscope, 'data', get_target_dataset(target), f'{target}.tgt')
-    # with tempfile.NamedTemporaryFile(suffix='.a3m') as f:
-    #     refor = f'reformat.pl {fasta_aln} {f.name}'
-    #     subprocess.run(refor, shell=True)
-    cmd = f'A3M_To_TGT -i {fasta_file} -I {a3m_aln} -o {tgt_file}'
-    subprocess.run(cmd, shell=True, cwd=os.path.join(PATHS.src, 'TGT_Package'))
-    os.remove(a3m_aln)
-
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        predict_property = os.path.join(PATHS.src, "Predict_Property", "Predict_Property.sh")
-
-        cmd = f'{predict_property} -i {tgt_file} -o {tmpdirname}'
-        subprocess.run(cmd, shell=True)
-        ss3_file = os.path.join(tmpdirname, f'{target}.ss3_simp')
-
-        with open(ss3_file, 'r') as f:
-            ss3_txt = list(f.readlines())
-
-        ss = ss3_txt[2]
-
-        ss3_txt = "".join([ss3_txt[0], ss])
-    return ss3_txt
 
 
 def dist(i, j):
@@ -262,7 +246,7 @@ def _save_cns_data(model: ContactMapEstimator, predictions, dataset):
 
         ss_file = os.path.join(model_cns_path, target + suffix_ss)
         if not os.path.isfile(ss_file):
-            txt_ss = _get_raptor_ss3_txt(target)
+            txt_ss = get_raptor_ss3_txt(target)
 
             with open(ss_file, 'w') as f:
                 f.write(txt_ss)
@@ -290,17 +274,20 @@ def _run_cns(target, model, outdir, sswt, selectrr, dataset, full):
 
 def _get_target_tm(target, model, full=False, sswt=5, dataset=None, selectrr='2.0L'):
     dataset = model.predict_data_manager.dataset if dataset is None else dataset
-
-    outdir = os.path.join(model.path, f'cns_{sswt}_{selectrr.replace(".", "_")}', dataset, target)
+    outdir = os.path.join(model.path, 'cns', dataset, target, 'stage1')
+    predicted_pdb = os.path.join(outdir, f'{target}_model1.pdb')
 
     check_path(outdir)
-    _run_cns(target, model, outdir, sswt, selectrr, dataset, full)
-    predicted_pdb = os.path.join(outdir, 'stage1', f'{target}_model1.pdb')
+    with tempfile.TemporaryDirectory() as d:
+        _run_cns(target, model, d, sswt, selectrr, dataset, full)
+        predicted_pdb_tmp = os.path.join(d, 'stage1', f'{target}_model1.pdb')
+        copyfile(predicted_pdb_tmp, predicted_pdb)
+
     pred_pdb = f'{target}_pred.pdb'
     save_chain_pdb(target, pred_pdb, predicted_pdb, 0)
 
     native_pdb = f'{target}_native.pdb'
-    save_chain_pdb(target, native_pdb, Protein(target[0:4], target[4]).pdb_fname, 1)
+    save_chain_pdb(target, native_pdb, Protein(target[0:4], target[4]).pdb_fname, 0)
 
     tm = _get_tm_score(native_pdb, pred_pdb)
     os.remove(pred_pdb)

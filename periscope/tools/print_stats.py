@@ -14,7 +14,7 @@ from scipy import interpolate
 from ..analysis.artist import get_cm
 from ..utils.utils import get_data, get_raptor_logits
 from ..utils.constants import PATHS, yaml_load, DATASETS
-from ..analysis.analyzer import ds_accuracy, calc_accuracy
+from ..analysis.analyzer import ds_accuracy, calc_accuracy, accuracy_short
 from ..net.contact_map import get_model_by_name
 from ..analysis.stats import get_datasets_pre_post
 
@@ -50,13 +50,15 @@ def _plot_acc_vs_msa(dataset, model_name):
         logits = data['prediction']
         gt = data['gt']
         acc = calc_accuracy(pred=logits, gt=gt, top=0.5)
-        acc_raptor = calc_accuracy(pred=raptor_logits, gt=gt, top=0.5)
+        acc_raptor = calc_accuracy(pred=raptor_logits, gt=gt, top=0.5) if raptor_logits is not None else 0
 
         plot_data['Periscope'].append(acc)
         plot_data['RaptorX'].append(acc_raptor)
         plot_data['beff'].append(np.log(float(data['beff'])))
         templates = data['templates']
-        n_refs = np.sum(np.max(np.max(templates, axis=0), axis=0) > 0)
+        n_refs = 0
+        if templates is not None:
+            n_refs = np.sum(np.max(np.max(templates, axis=0), axis=0) > 0)
         plot_data['# of Templates'].append(n_refs)
         plot_data['Templates Relative Weight'].append(_get_templates_relative_contribution(data))
 
@@ -133,10 +135,11 @@ def _plot_acc_vs_msa(dataset, model_name):
 
 
 def main():
-    print(get_datasets_pre_post())
+    # print(get_datasets_pre_post())
     args = parse_args()
     model = args.model
     datasets = args.datasets
+    accuracy_short(get_model_by_name(model), datasets)
     # tm = get_tm_stats(['membrane', 'cameo41', 'cameo'], model)
     # LOGGER.info(f'{model} average tm is {tm}')
     if model != 'modeller':

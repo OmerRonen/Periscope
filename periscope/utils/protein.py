@@ -11,7 +11,7 @@ from Bio.PDB.DSSP import dssp_dict_from_pdb_file
 from Bio.PDB.StructureBuilder import PDBConstructionWarning
 
 import numpy as np
-from Bio.PDB import Polypeptide
+from Bio.PDB import Polypeptide, is_aa
 from Bio.PDB.PDBParser import PDBParser
 from .constants import PATHS
 from .utils import pkl_load, get_modeller_pdb_file, get_pdb_fname, check_path, pkl_save
@@ -22,11 +22,15 @@ warnings.simplefilter('ignore', PDBConstructionWarning)
 path_to_dssp = os.path.join(PATHS.src, 'dssp-2.3.0/mkdssp')
 
 
+def _is_valid(r):
+    return is_aa(r)
+
+
 class Protein:
     NAN_VALUE = -1
     _THRESHOLD = 8
 
-    def __init__(self, protein, chain, pdb_path=PATHS.pdb, modeller_n_struc=1, version=5, pdb_fname=None):
+    def __init__(self, protein, chain, pdb_path=PATHS.pdb, modeller_n_struc=1, version=6, pdb_fname=None):
         self.VERSION = version
         self.protein = protein if type(protein) == str else protein.decode(
             "utf-8")
@@ -65,6 +69,8 @@ class Protein:
             return
 
     def get_pdb_file(self):
+        if self.protein.upper()== self.protein:
+            return
 
         msg = "cannot find a pdb file named '" + self.pdb_fname + "'."
         LOGGER.info(msg)
@@ -119,11 +125,6 @@ class Protein:
         return aa_mask
 
     def _get_residues(self):
-
-        def _is_valid(r):
-            if r.id[2] != ' ':
-                return False
-            return r.id[0] == ' ' or r.id[0] == 'H_MSE'
 
         residues = [r for r in self._bio_chain.get_residues() if _is_valid(r)]
 
@@ -190,11 +191,6 @@ class Protein:
         except Exception:
             return na_arr
 
-        def _is_valid(r):
-            if r.id[2] != ' ':
-                return False
-            return r.id[0] == ' ' or r.id[0] == 'H_MSE'
-
         accessible_surface_area = []
 
         for residue in self._get_residues():
@@ -251,7 +247,7 @@ class Protein:
 
     def get_chain_seq(self):
 
-        seq_file = os.path.join(self._target_dir, 'seq.pkl')
+        seq_file = os.path.join(self._target_dir, 'seq_aa.pkl')
         if os.path.isfile(seq_file):
             return pkl_load(seq_file)
         residues = self._get_residues()

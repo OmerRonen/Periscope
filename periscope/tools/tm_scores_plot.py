@@ -30,6 +30,8 @@ def _get_scores(target):
 def main():
     markers = {'pfam': '8', 'cameo': 'p', 'cameo41': "*", 'membrane': "D"}
 
+    total_folds = {"Periscope":0, "Modeller":0}
+
     for dataset in datasets:
         scores = {}
         ds = getattr(DATASETS, dataset)
@@ -56,7 +58,9 @@ def main():
         n_refs = n_refs  # / np.max(n_refs)
 
         modeller_correct_fold = np.sum(np.array(modeller) > 0.5)
+        total_folds['Modeller'] += modeller_correct_fold
         ms_correct_fold = np.sum(np.array(our_scores) > 0.5)
+        total_folds['Periscope'] += ms_correct_fold
 
         LOGGER.info(
             f'{dataset} (n = {len(modeller)}):\nModeller correct folds: {modeller_correct_fold}\nMs correct fold {ms_correct_fold}')
@@ -131,6 +135,8 @@ def main():
         plt.title(f'{dataset}')
         plt.savefig(os.path.join(PATHS.periscope, 'data', 'figures', f'tm_scores_{dataset}.png'))
         plt.close()
+
+    LOGGER.info(f'Total folds:\n{total_folds}')
 
 
 if __name__ == '__main__':

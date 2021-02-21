@@ -6,7 +6,7 @@ import sys
 import subprocess
 import logging
 
-src_path = '/cs/zbio/orzuk/projects/ContactMaps/src/Periscope'
+src_path = '/vol/sci/bio/data/or.zuk/projects/ContactMaps/src/Periscope'
 modeller_path = os.path.join(src_path, 'data', 'modeller')
 pdb_path = ''
 
@@ -39,10 +39,10 @@ target_chain = sys.argv[2]
 target_path = path.join(modeller_path, target + target_chain)
 if not path.exists(target_path):
     os.mkdir(target_path)
-# target_pdb_fname = 'pdb' + target + '.ent'
+target_pdb_fname = 'pdb' + target + '.ent'
 target_pir_fname = target+target_chain + '.ali'
 # target_pdb_file = path.join(pdb_path, target_pdb_fname)
-# check_pdb(target_pdb_fname, pdb_path)
+check_pdb(target_pdb_fname, pdb_path)
 template = sys.argv[3]
 template_chain = sys.argv[4]
 n_structures = sys.argv[5]

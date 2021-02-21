@@ -49,6 +49,8 @@ if __name__ == "__main__":
     ds_given = dataset is not None
 
     proteins = getattr(DATASETS, dataset) if ds_given else proteins
+    # model_drive_path = os.path.join(PATHS.drive, f'{model_name}/predictions/trypsin')
+    # proteins = os.listdir(model_drive_path)
 
     for protein in proteins:
         model_drive_path = os.path.join(PATHS.drive, f'{model_name}/predictions/{get_target_dataset(protein)}')

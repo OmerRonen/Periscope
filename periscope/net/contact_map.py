@@ -15,7 +15,7 @@ from ..utils.constants import (ARCHS, PROTEIN_BOW_DIM, PROTEIN_BOW_DIM_PSSM_SS,
 from ..net.basic_ops import (get_top_category_accuracy, deep_conv_op, multi_structures_op,
                              multi_structures_op_simple, get_opt_op, upper_triangular_mse_loss,
                              upper_triangular_cross_entropy_loss, periscope_op, evo_op, template_op)
-from ..utils.utils import yaml_save
+from ..utils.utils import yaml_save, pkl_load, check_path, get_quant, pkl_save
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
 
@@ -56,7 +56,7 @@ class ProteinNet:
         self.output_shape = (None, None, self.num_bins)
 
         self.prediction_type = 'regression' if self.num_bins == 1 else 'classification'
-        self.threshold = 8 if self.num_bins == 1 else int(self.num_bins/2)
+        self.threshold = 8 if self.num_bins == 1 else int(self.num_bins / 2)
 
     def get_top_prediction(self, predictions, contact_map, sequence_length,
                            mode):
@@ -299,6 +299,7 @@ class ContactMapEstimator:
         self._opt_params = self._train_params['opt']
 
         self._batch_size = self._train_params['batch_size']
+        self._require_template = self._train_params['require_template']
 
         self.conv_features = params['net']['data']['conv_features']
 
@@ -319,7 +320,8 @@ class ContactMapEstimator:
             'conv_features': self.conv_features,
             'n_refs': k,
             'model_path': self.artifacts_path,
-            'num_bins': self.net.num_bins
+            'num_bins': self.net.num_bins,
+            'require_template': self._require_template
         }
         train_epochs = self._train_params['epochs']
         t_drop = self._train_params['templates_dropout']
@@ -361,6 +363,47 @@ class ContactMapEstimator:
                                                 self.path,
                                                 params={"L": 5},
                                                 config=config)
+
+    def predict(self, proteins=None, dataset=None, family=None):
+
+        dataset = self.predict_data_manager.dataset if dataset is None else dataset
+        predictions_path = os.path.join(self.path, 'predictions')
+        check_path(predictions_path)
+        prediction_file = os.path.join(predictions_path, f'{dataset}.pkl')
+        if os.path.isfile(prediction_file) and proteins is None:
+            return pkl_load(prediction_file)
+        if proteins is not None:
+            LOGGER.info(f'require template {self._require_template}')
+
+            preds = list(self.get_custom_predictions_gen(proteins, dataset, family,
+                                                         require_template=self._require_template))
+        else:
+            preds = list(self.get_predictions_generator())
+
+        proteins = pkl_load(
+            os.path.join(self.artifacts_path, f'predicted_proteins_{dataset}.pkl'))
+        model_predictions = {'cm': {}, 'logits': {}, 'weights': {}}
+
+        for protein, pred in dict(zip(proteins, preds)).items():
+            logits = pred['cm']
+            weights = pred['weights']
+            shp = int(logits.shape[-1])
+            contact_probs = np.sum(logits[..., 0:int(shp / 2)], axis=-1)
+            l = contact_probs.shape[1]
+            # top l/2 predictions
+            quant = get_quant(l)
+            model_predictions['cm'][protein] = np.where(
+                contact_probs >= np.quantile(
+                    contact_probs[np.triu_indices(contact_probs.shape[0])], quant),
+                1, 0)
+
+            model_predictions['logits'][protein] = contact_probs
+            model_predictions['weights'][protein] = weights
+
+        if proteins is None:
+            pkl_save(filename=prediction_file, data=model_predictions)
+
+        return model_predictions
 
     def _get_opt_op(self, loss, global_step):
         return get_opt_op(loss, global_step, **self._opt_params)
@@ -459,14 +502,17 @@ class ContactMapEstimator:
         dataset = dataset.batch(1)
         return dataset
 
-    def _get_custom_input_fn(self, proteins, dataset):
+    def _get_custom_input_fn(self, proteins, dataset, family=None, require_template=True):
+        LOGGER.info(f'require template {require_template}')
 
         data_generator_args = self._data_generator_args
-
+        data_generator_args['require_template'] = require_template
+        LOGGER.info(data_generator_args)
         data_gen = self._generator(proteins=proteins,
                                    mode=tf.estimator.ModeKeys.PREDICT,
                                    epochs=1,
                                    dataset=dataset,
+                                   family=family,
                                    **data_generator_args)
 
         def custom_input_fn():
@@ -512,8 +558,10 @@ class ContactMapEstimator:
         return self.estimator.predict(self.eval_input_fn,
                                       yield_single_examples=True)
 
-    def get_custom_predictions_gen(self, proteins, dataset):
-        input_fn = self._get_custom_input_fn(proteins, dataset)
+    def get_custom_predictions_gen(self, proteins, dataset, family=None, require_template=True):
+        LOGGER.info(f'require template {require_template}')
+
+        input_fn = self._get_custom_input_fn(proteins, dataset, family, require_template=require_template)
         return self.estimator.predict(input_fn,
                                       yield_single_examples=True)
 

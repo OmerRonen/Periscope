@@ -15,6 +15,9 @@ from ..utils.protein import Protein
 from ..utils.utils import get_target_dataset, check_path, pkl_load, get_data, get_raptor_logits
 
 
+
+
+
 def _read_csv_np(filename):
     if not os.path.isfile(filename):
         return
@@ -238,8 +241,8 @@ def _get_color(weights, slope=4,
 
 def plot_weights(model_name, target,
                  value_slope=5, value_offset=-0.1, proba_contact_cutoff=0.5, background_alpha=0.1,
-                 cmap='Set1'):
-    data = get_data(model_name, target)
+                 cmap='Set1', family=None):
+    data = get_data(model_name, target, family)
     weights = data['weights']
     predictions = data['prediction']
     L = weights.shape[0]
@@ -282,7 +285,7 @@ def plot_weights(model_name, target,
 
     ax.set_xticks([])
     ax.set_yticks([])
-    dataset = get_target_dataset(target)
+    dataset = get_target_dataset(target, family)
     # prediction_path = os.path.join(PATHS.drive, model_name, 'predictions', dataset, target)
     fig_path = os.path.join(PATHS.drive, model_name, 'artifacts', dataset, target)
     fig_name = os.path.join(fig_path, f'weights.png')
@@ -364,9 +367,9 @@ def plot_weights_old(model_name, target, order=1):
     plt.savefig(fig_name)
 
 
-def evaluate_pred_vs_ref(model_name, target):
-    data = get_data(model_name, target)
-    dataset = get_target_dataset(target)
+def evaluate_pred_vs_ref(model_name, target, family):
+    data = get_data(model_name, target, family)
+    dataset = get_target_dataset(target, family)
     fig_path = os.path.join(PATHS.drive, model_name, 'artifacts', dataset, target)
     fig_name = os.path.join(fig_path, 'pred_ref.png')
     check_path(fig_path)
@@ -379,16 +382,17 @@ def evaluate_pred_vs_ref(model_name, target):
                     labels=labels)
 
 
-def evaluate_pred_vs_modeller(model_name, target):
-    data = get_data(model_name, target)
-    dataset = get_target_dataset(target)
+def evaluate_pred_vs_modeller(model_name, target, family):
+    data = get_data(model_name, target, family)
+    dataset = get_target_dataset(target, family)
     fig_path = os.path.join(PATHS.drive, model_name, 'artifacts', dataset, target)
     fig_name = os.path.join(fig_path, 'pred_mod.png')
     check_path(fig_path)
     gt = data['gt']
     l = gt.shape[0]
     pred_model, _ = get_cm(data['prediction'], l)
-    modeller = _read_csv_np(os.path.join(PATHS.data, dataset, 'modeller', f'{target}.csv'))
+    mod_ds = get_target_dataset(target) if get_target_dataset(target) is not None else family
+    modeller = _read_csv_np(os.path.join(PATHS.data,mod_ds , 'modeller', f'{target}.csv'))
     if modeller is None:
         return
     labels = list(Protein(target[0:4], target[4]).str_seq)
@@ -396,9 +400,9 @@ def evaluate_pred_vs_modeller(model_name, target):
     evaluation_plot(pred1=pred_model, pred2=modeller, gt=gt, fig_name=fig_name, pred2_name='Modeller', labels=labels)
 
 
-def evaluate_pred_vs_raptor(model_name, target):
-    data = get_data(model_name, target)
-    dataset = get_target_dataset(target)
+def evaluate_pred_vs_raptor(model_name, target, family):
+    data = get_data(model_name, target, family)
+    dataset = get_target_dataset(target, family)
     fig_path = os.path.join(PATHS.drive, model_name, 'artifacts', dataset, target)
     fig_name = os.path.join(fig_path, 'pred_raptor.png')
     check_path(fig_path)
@@ -414,10 +418,10 @@ def evaluate_pred_vs_raptor(model_name, target):
     evaluation_plot(pred1=pred_model, pred2=pred_raptor, gt=gt, fig_name=fig_name, pred2_name='Raptor', labels=labels)
 
 
-def evaluate_pred_vs_evo(model_name, target):
-    for evo in ['ccmpred', 'evfold']:
-        data = get_data(model_name, target)
-        dataset = get_target_dataset(target)
+def evaluate_pred_vs_evo(model_name, target, family):
+    for evo in ['ccmpred']:
+        data = get_data(model_name, target, family)
+        dataset = get_target_dataset(target, family)
         fig_path = os.path.join(PATHS.drive, model_name, 'artifacts', dataset, target)
         fig_name = os.path.join(fig_path, f'pred_{evo}.png')
         check_path(fig_path)
@@ -430,9 +434,9 @@ def evaluate_pred_vs_evo(model_name, target):
         evaluation_plot(pred1=pred_model, pred2=pred_evo, gt=gt, fig_name=fig_name, pred2_name=evo, labels=labels)
 
 
-def evaluate_pred_roc(model_name, target):
-    data = get_data(model_name, target)
-    dataset = get_target_dataset(target)
+def evaluate_pred_roc(model_name, target, family):
+    data = get_data(model_name, target, family)
+    dataset = get_target_dataset(target, family)
     fig_path = os.path.join(PATHS.drive, model_name, 'artifacts', dataset, target)
     fig_name = os.path.join(fig_path, 'roc.png')
     check_path(fig_path)
@@ -441,11 +445,17 @@ def evaluate_pred_roc(model_name, target):
     l = gt.shape[0]
     mask = _get_mask(l)
     pred_logits = data['prediction'] * mask
-    refs = data['refs_contacts'] * mask
-    raptor_logits = get_raptor_logits(target)* mask
+    refs = data['refs_contacts'] * mask if data['refs_contacts'] is not None else np.zeros_like(mask)
+    r_logits = get_raptor_logits(target)
+    raptor_logits = r_logits * mask if r_logits is not None else np.zeros_like(mask)
+
     try:
-        modeller = _read_csv_np(os.path.join(PATHS.data, dataset, 'modeller', f'{target}.csv')) * mask
-    except ValueError:
+        ds = get_target_dataset(target)
+        ds = ds if ds is not None else dataset
+        mod= _read_csv_np(os.path.join(PATHS.data,ds, 'modeller', f'{target}.csv'))
+        modeller = mod * mask if mod is not None else np.zeros_like(mask)
+
+    except ValueError as e:
         modeller = np.zeros_like(raptor_logits)
     gt *= mask
     _plot_roc(pred_logits, gt, modeller, refs, fig_name=fig_name, pred2_logits=raptor_logits, method2_name='RaptorX')
@@ -518,16 +528,17 @@ def _plot_roc(pred_logits, gt, modeller, refs, pred2_logits=None, fig_name=None,
     #     ax4.annotate(ref_name, (fpr_method_2, tpr_method_2), color='darkorange')
 
 
-def make_art(model_name, target):
-    data = get_data(model_name, target)
+def make_art(model_name, target, family=None):
+    data = get_data(model_name, target, family)
     if data is None:
         return
-    evaluate_pred_vs_ref(model_name, target)
-    evaluate_pred_roc(model_name, target)
-    evaluate_pred_vs_modeller(model_name, target)
-    evaluate_pred_vs_raptor(model_name, target)
-    evaluate_pred_vs_evo(model_name, target)
-    plot_weights(model_name, target)
+    evaluate_pred_vs_ref(model_name, target, family)
+    evaluate_pred_vs_evo(model_name, target, family)
+    evaluate_pred_vs_raptor(model_name, target, family)
+
+    evaluate_pred_roc(model_name, target, family)
+    evaluate_pred_vs_modeller(model_name, target, family)
+    plot_weights(model_name, target, family=family)
     # plot_weights_old(model_name, target)
     #
     # try:
