@@ -4,10 +4,9 @@ from argparse import ArgumentParser
 import numpy as np
 import pandas as pd
 
-from periscope.analysis.analyzer import save_model_predictions
-from periscope.data.creator import DataCreator
-from periscope.net.contact_map import get_model_by_name
-from periscope.utils.utils import get_target_dataset
+from ..data.creator import DataCreator
+from ..net.contact_map import get_model_by_name
+from ..utils.utils import get_target_dataset
 
 logging.getLogger().setLevel(logging.CRITICAL)
 

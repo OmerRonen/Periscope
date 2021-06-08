@@ -1,0 +1,13 @@
+,,RaptorX,prscope_bins_no_templates
+Short,Top L,0.16,0.04
+Short,Top L/2,0.27,0.04
+Short,Top L/5,0.46,0.03
+Short,Top L/10,0.6,0.03
+Medium,Top L,0.22,0.02
+Medium,Top L/2,0.33,0.01
+Medium,Top L/5,0.53,0.01
+Medium,Top L/10,0.66,0.01
+Long,Top L,0.47,0.01
+Long,Top L/2,0.62,0.0
+Long,Top L/5,0.73,0.01
+Long,Top L/10,0.78,0.0

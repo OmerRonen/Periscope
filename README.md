@@ -16,7 +16,7 @@ Additionaly all packages in the `requirements.txt` file should be installed
 ## Predictions
 To predict a contact map for protein `5bu3D` using our method you need to clone to this repository and use:
 ```python
-python3 -m periscope.tools.predict nips_model "5bu3D" -o  "5bu3D.csv"
+python3 -m periscope.tools.predict prscope_bins_no_templates "5bu3D" -o  "5bu3D.csv"
 ```
 The file `5bu3D.csv` will contain the predicted contact probabilities.
 
