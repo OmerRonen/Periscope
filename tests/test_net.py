@@ -12,8 +12,8 @@ class TestProteinNet(unittest.TestCase):
         tempdir = tempfile.TemporaryDirectory(dir=PATHS.models)
         model_name = tempdir.name.split('/')[-1]
         params = NetParams.generate_net_params(name=model_name,
-                                               conv_features=[FEATURES.ccmpred, FEATURES.evfold],
-                                               arch=ARCHS.periscope2,
+                                               conv_features=[FEATURES.ccmpred],
+                                               arch=ARCHS.periscope_properties,
                                                k=10,
                                                save_summary_steps=2,
                                                save_checkpoints_steps=20,
@@ -38,7 +38,7 @@ class TestProteinNet(unittest.TestCase):
         model_name = tempdir.name.split('/')[-1]
         params = NetParams.generate_net_params(
             name=model_name,
-            conv_features=[FEATURES.reference_dm, FEATURES.ccmpred, FEATURES.evfold],
+            conv_features=[FEATURES.reference_dm, FEATURES.ccmpred],
             arch=ARCHS.evo,
             save_summary_steps=1,
             save_checkpoints_steps=1,
@@ -67,7 +67,7 @@ class TestProteinNet(unittest.TestCase):
         params = NetParams.generate_net_params(
             name=model_name,
             conv_features=[FEATURES.ccmpred, FEATURES.reference_dm, FEATURES.evfold],
-            arch=ARCHS.templates,
+            arch=ARCHS.periscope_properties,
             save_summary_steps=1,
             save_checkpoints_steps=1,
             epochs=1,

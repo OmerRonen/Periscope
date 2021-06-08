@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-sbatch -J $1 --mail-type=FAIL -M hm --mail-type=END --mail-user=omer.ronen@mail.huji.ac.il -o $1.out --mem=20g --time=100:0:0 -c4 /vol/sci/bio/data/or.zuk/projects/ContactMaps/src/Periscope/slurm_scripts/python.sh -m periscope.$2 $3 $4 $5 $6 $7 $8
+sbatch -J $1 --mail-type=FAIL --mail-type=END --mail-user=omer.ronen@mail.huji.ac.il -o $1.out --mem=20g --time=100:0:0 -c4 /vol/sci/bio/data/or.zuk/projects/ContactMaps/src/Periscope/slurm_scripts/python.sh -m periscope.$2 $3 $4 $5 $6 $7 $8

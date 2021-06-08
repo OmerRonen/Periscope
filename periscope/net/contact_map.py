@@ -7,14 +7,15 @@ import numpy as np
 
 from functools import partial
 
+from .nets import periscope_net, template_net, evo_net, periscope_net_properties
 from .params import NetParams
 from ..data.generator import Generators
-from ..utils.constants import (ARCHS, PROTEIN_BOW_DIM, PROTEIN_BOW_DIM_PSSM_SS,
+from ..utils.constants import (ARCHS, PROTEIN_BOW_DIM_PSSM_SS,
                                PROTEIN_BOW_DIM_SS,
                                DATASETS, FEATURES, PATHS)
 from ..net.basic_ops import (get_top_category_accuracy, deep_conv_op, multi_structures_op,
                              multi_structures_op_simple, get_opt_op, upper_triangular_mse_loss,
-                             upper_triangular_cross_entropy_loss, periscope_op, evo_op, template_op)
+                             upper_triangular_cross_entropy_loss)
 from ..utils.utils import yaml_save, pkl_load, check_path, get_quant, pkl_save
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
@@ -99,7 +100,7 @@ class ProteinNet:
 class PeriscopeNet(ProteinNet):
     @property
     def predicted_contact_map(self):
-        return partial(periscope_op,
+        return partial(periscope_net,
                        conv_params=self._conv_arch_params)
 
     # @property
@@ -121,10 +122,37 @@ class PeriscopeNet(ProteinNet):
         return periscope_input
 
 
+class PeriscopePropertiesNet(ProteinNet):
+    @property
+    def predicted_contact_map(self):
+        return partial(periscope_net_properties,
+                       conv_params=self._conv_arch_params)
+
+    # @property
+    # def weights(self):
+    #     return partial(get_weights,
+    #                    conv_params=self._conv_arch_params)
+
+    def get_inputs(self, features):
+        periscope_input = {
+            'dms': features[FEATURES.k_reference_dm_conv],
+            'seq_refs': features[FEATURES.seq_refs],
+            'ccmpred': features[FEATURES.ccmpred],
+            FEATURES.pwm_evo: features[FEATURES.pwm_evo],
+            FEATURES.pwm_w: features[FEATURES.pwm_w],
+            FEATURES.conservation: features[FEATURES.conservation],
+            FEATURES.beff: features[FEATURES.beff],
+            FEATURES.seq_target: features[FEATURES.seq_target],
+            FEATURES.properties_target: features[FEATURES.properties_target]
+
+        }
+        return periscope_input
+
+
 class TempaltesNet(ProteinNet):
     @property
     def predicted_contact_map(self):
-        return partial(template_op,
+        return partial(template_net,
                        conv_params=self._conv_arch_params)
 
     # @property
@@ -144,13 +172,8 @@ class TempaltesNet(ProteinNet):
 class EvoNet(ProteinNet):
     @property
     def predicted_contact_map(self):
-        return partial(evo_op,
+        return partial(evo_net,
                        conv_params=self._conv_arch_params)
-
-    # @property
-    # def weights(self):
-    #     return partial(get_weights,
-    #                    conv_params=self._conv_arch_params)
 
     def get_inputs(self, features):
         periscope_input = {
@@ -264,7 +287,8 @@ _nets = {ARCHS.conv: ConvProteinNet,
          ARCHS.periscope: PeriscopeNet,
          ARCHS.periscope2: PeriscopeNet,
          ARCHS.templates: TempaltesNet,
-         ARCHS.evo: EvoNet}
+         ARCHS.evo: EvoNet,
+         ARCHS.periscope_properties: PeriscopePropertiesNet}
 
 
 def get_model_by_name(model_name, test_dataset=None):

@@ -3,7 +3,7 @@ import tempfile
 
 from argparse import ArgumentParser
 
-from ..utils.constants import DATASETS, PATHS
+from ..utils.constants import DATASETS_FULL, PATHS
 
 
 def parse_args():
@@ -18,7 +18,7 @@ def main():
     args = parse_args()
     n = args.n
     for d in args.datasets:
-        proteins = getattr(DATASETS, d)
+        proteins = getattr(DATASETS_FULL, d)
         if n > 0:
             proteins = proteins[0:n]
         for protein in proteins:

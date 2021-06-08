@@ -2,6 +2,7 @@ import logging
 import os
 import random
 import tempfile
+import time
 
 import numpy as np
 import tensorflow as tf
@@ -697,6 +698,156 @@ class PeriscopeGeneratorSsAcc(DataGenerator):
         return data
 
 
+class PeriscopePropertiesGenerator(DataGenerator):
+    @property
+    def required_shape_types(self):
+        shapes = {
+            FEATURES.seq_refs: (None, PROTEIN_BOW_DIM + 9, self._n_refs),
+            # FEATURES.evfold: (None, None, 1),
+            FEATURES.k_reference_dm_conv: (None, None, self._n_refs),
+            FEATURES.ccmpred: (None, None, 1),
+            FEATURES.pwm_w: (None, 21),
+            FEATURES.pwm_evo: (None, 30),
+            FEATURES.conservation: (None, 1),
+            FEATURES.beff: (1,),
+            FEATURES.seq_target: (None, PROTEIN_BOW_DIM),
+            FEATURES.properties_target: (None, 13)
+
+        }
+
+        if self._mode != tf.estimator.ModeKeys.PREDICT:
+            dim = 1 if self._num_bins <= 2 else self._num_bins
+            shapes['contact_map'] = (None, None, dim)
+
+        types = {f: tf.float32 for f in shapes}
+        shapes['sequence_length'] = (1,)
+        types['sequence_length'] = tf.int32
+
+        return shapes, types
+
+    def _yield_random_data(self, l):
+        data = {}
+        if self._mode != tf.estimator.ModeKeys.PREDICT:
+            data['contact_map'] = bin_array(np.array(
+                np.random.randint(low=0, high=2, size=(l, l)), np.float32), self._num_bins)
+        data[FEATURES.seq_refs] = np.random.random(
+            (l, PROTEIN_BOW_DIM + 9, self._n_refs))
+        # data[FEATURES.evfold] = np.random.random((l, l, 1))
+        data[FEATURES.ccmpred] = np.random.random((l, l, 1))
+        data[FEATURES.k_reference_dm_conv] = np.random.random(
+            (l, l, self._n_refs))
+        data[FEATURES.pwm_w] = np.random.random((l, 21))
+        data[FEATURES.pwm_evo] = np.random.random((l, 30))
+        data[FEATURES.conservation] = np.expand_dims(np.array(np.random.random((l)), dtype=np.float32), axis=1)
+        data[FEATURES.beff] = np.array(np.random.random(1), dtype=np.float32)
+        data[FEATURES.properties_target] = np.random.random((l, 13))
+        data[FEATURES.seq_target] = np.random.random((l,22))
+
+        data['sequence_length'] = np.array([l], dtype=np.int32)
+
+        return data
+
+    def _yield_protein_data(self, protein, l=None):
+        start = time.time()
+        drop = np.random.binomial(1, self._templates_dropout)
+
+        file = os.path.join(self._tmp_dir.name, f'{protein}.pkl')
+        if os.path.isfile(file) and self._mode == tf.estimator.ModeKeys.TRAIN:
+            LOGGER.info(f"loading {file}")
+            data = pkl_load(file)
+            if drop == 1:
+                LOGGER.info('Templates dropped')
+                data[FEATURES.k_reference_dm_conv] = np.zeros_like(data[FEATURES.k_reference_dm_conv])
+            return data
+
+        data = {}
+
+        LOGGER.info(protein)
+
+        try:
+            # start_time = time.time()
+
+            # data_seeker = DataSeeker(protein, n_refs=self._n_refs)
+            data_creator = DataCreator(protein, n_refs=self._n_refs, family=self._family,
+                                       require_template=self._require_template)
+            # end_time = time.time()
+            # LOGGER.info(f'creator takes  {end_time-start_time}')
+            if not data_creator.has_refs:
+                return
+
+            # start_time = time.time()
+            # evfold = np.expand_dims(data_seeker.evfold, axis=2)
+            # end_time = time.time()
+            # LOGGER.info(f'Evfold takes  {end_time-start_time}')
+            # start_time = time.time()
+            ccmpred = np.expand_dims(data_creator.ccmpred, axis=2)
+            # end_time = time.time()
+            # LOGGER.info(f'CCmpred takes  {end_time-start_time}')
+            # if ccmpred.shape != evfold.shape:
+            #     return
+            # data[FEATURES.evfold] = evfold
+            data[FEATURES.ccmpred] = ccmpred
+        except Exception as e:
+            LOGGER.error(f'Data error for protein {protein}:\n{str(e)}')
+            return
+        try:
+            # start_time = time.time()
+
+            data[FEATURES.k_reference_dm_conv] = data_creator.k_reference_dm_test
+            # end_time = time.time()
+            # LOGGER.info(f'k_reference_dm_test takes  {end_time-start_time}')
+            # start_time = time.time()
+
+            data[FEATURES.seq_refs] = data_creator.seq_refs_ss_acc
+            # end_time = time.time()
+            # LOGGER.info(f'seq_refs_ss_acc takes  {end_time-start_time}')
+
+            if drop == 1 and self._mode == tf.estimator.ModeKeys.TRAIN:
+                LOGGER.info('Templates dropped')
+                data[FEATURES.k_reference_dm_conv] = np.zeros_like(data_creator.k_reference_dm_test)
+            # start_time = time.time()
+
+            data[FEATURES.pwm_w] = data_creator.pwm_w
+            data[FEATURES.pwm_evo] = data_creator.pwm_evo_ss
+            data[FEATURES.conservation] = data_creator.conservation
+            data[FEATURES.beff] = data_creator.beff
+            # end_time = time.time()
+            # LOGGER.info(f'scores takes  {end_time-start_time}')
+            # start_time = time.time()
+
+            data[FEATURES.properties_target] = data_creator.raptor_properties
+            # end_time = time.time()
+            # LOGGER.info(f'raptor_properties takes  {end_time-start_time}')
+            data[FEATURES.seq_target] = data_creator.seq_target
+
+        except Exception as e:
+            LOGGER.error(f'Data error for protein {protein}:\n{str(e)}')
+            return
+
+        has_nones = False
+        for f in data:
+            has_nones |= data[f] is None
+        if has_nones:
+            return
+        target_sequence_length = len(data_creator.str_seq)
+        data['sequence_length'] = np.array([target_sequence_length])
+
+        if target_sequence_length >= 650:
+            return
+
+        if self._mode != tf.estimator.ModeKeys.PREDICT:
+            cm = bin_array(data_creator.protein.dm, self._num_bins)
+            data['contact_map'] = cm if l is None else self._pad_feature(l, cm)
+
+        if self._mode == tf.estimator.ModeKeys.PREDICT:
+            self._yielded.append(protein)
+        if drop:
+            data[FEATURES.k_reference_dm_conv] = data_creator.k_reference_dm_test
+        pkl_save(file, data)
+        LOGGER.info(f"Time elapsed {time.time() - start}")
+        return data
+
+
 class TemplatesGenerator(DataGenerator):
     @property
     def required_shape_types(self):
@@ -886,4 +1037,5 @@ Generators = {ARCHS.conv: ConvGenerator,
               ARCHS.periscope: PeriscopeGenerator,
               ARCHS.periscope2: PeriscopeGeneratorSsAcc,
               ARCHS.evo: EvoGenerator,
-              ARCHS.templates: TemplatesGenerator}
+              ARCHS.templates: TemplatesGenerator,
+              ARCHS.periscope_properties: PeriscopePropertiesGenerator}

@@ -11,12 +11,10 @@ logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
 
-def _get_valid_proteins(dataset, aln_method='old'):
+def _get_valid_proteins(dataset):
     full_dataset = set(getattr(DATASETS_FULL, dataset))
-    if aln_method == 'new':
-        valid_proteins = [p for p in full_dataset if DataCreator(p).has_refs_new]
-    else:
-        valid_proteins = [p for p in full_dataset if DataCreator(p).has_refs]
+    valid_proteins = [p for p in full_dataset if DataCreator(p).has_refs]
+
     return valid_proteins
 
 
@@ -54,7 +52,6 @@ def _get_data(dataset):
 
 
 def main():
-    aln_method = 'old'
     pfam = _get_data('pfam')
     cameo = _get_data('cameo')
     cameo41 = _get_data('cameo41')
@@ -67,24 +64,14 @@ def main():
     _save_valid_datasets()
     valid = []
     errs = []
-    if aln_method == 'new':
-        for p in train:
-            try:
-                if DataCreator(p).has_refs_new:
-                    valid.append(p)
-            except Exception:
-                errs.append(p)
-                pass
-        LOGGER.info(f'erros: {errs}')
-    else:
-        for p in train:
-            try:
-                if DataCreator(p).has_refs:
-                    valid.append(p)
-            except Exception:
-                errs.append(p)
-                pass
-        LOGGER.info(f'erros: {errs}')
+    for p in train:
+        try:
+            if DataCreator(p).has_refs:
+                valid.append(p)
+        except Exception:
+            errs.append(p)
+            pass
+    LOGGER.info(f'erros: {errs}')
 
     np.random.shuffle(valid)
     percentile = int(np.ceil(0.8 * len(valid)))
