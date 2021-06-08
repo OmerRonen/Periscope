@@ -15,7 +15,7 @@ import pickle
 import time
 import logging
 
-from .constants import PATHS, LOCAL, DATASETS, N_REFS, DATASETS_FULL
+from .constants import PATHS, DATASETS, N_REFS, DATASETS_FULL
 
 LOGGER = logging.getLogger(__name__)
 warnings.simplefilter('ignore', yaml.YAMLLoadWarning)
@@ -297,9 +297,6 @@ def run_clustalo(sequences, fname, target=None, structures=None, family=None):
 
 
 def create_sifts_mapping():
-    if LOCAL:
-        return
-
     working_dir = PATHS.data
     if not path.isfile(path.join(PATHS.data, 'sifts_mapping.pkl')):
         sifts_mapping = {}

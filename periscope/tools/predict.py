@@ -18,6 +18,7 @@ def parse_args():
     parser.add_argument('protein', type=str, help='target name')
     parser.add_argument('-f', "--family", type=str, help='protein family (optional)', default=None)
     parser.add_argument('-o', "--outfile", type=str, help='file to save prediction')
+    parser.add_argument('-g', "--generate_data", action="store_true", help='if true generate the data')
 
     return parser.parse_args()
 
@@ -29,6 +30,8 @@ def main():
     outfile = args.outfile
     family = args.family
     model = get_model_by_name(model_name)
+    if args.generate_data:
+        _ = DataCreator(target=protein, family=family, train=False).generate_data()
     predictions = model.predict(proteins=[protein], family=family, dataset=get_target_dataset(protein))['logits']
     sequence = list(DataCreator(target=protein, family=family).str_seq)
     pd.DataFrame(np.squeeze(predictions[protein]), columns=sequence, index=sequence).to_csv(outfile)
