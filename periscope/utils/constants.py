@@ -1,7 +1,15 @@
 import os
-from collections import namedtuple
-import pandas as pd
+import pathlib
 import yaml
+
+import pandas as pd
+
+from collections import namedtuple
+
+
+def check_path(pth):
+    if not os.path.exists(pth):
+        pathlib.Path(pth).mkdir(parents=True)
 
 
 def yaml_load(filename):
@@ -9,6 +17,7 @@ def yaml_load(filename):
         data_loaded = yaml.load(stream)
 
     return data_loaded
+
 
 N_LAYERS_PROJ = 3
 N_REFS = 10
@@ -71,35 +80,62 @@ FEATURES_DIMS = {
     'seq_refs': (None, PROTEIN_BOW_DIM, None),
 }
 
-LOCAL = '/Users/omerronen/Documents/Periscope' in os.getcwd()
-_base_path = '/vol/sci/bio/data/or.zuk/projects/ContactMaps'
-_msa_path = f'{_base_path}/data/MSA_Completion/msa_data'
-_local_pdb_path = '/Users/omerronen/Documents/Periscope/data/pdb'
-_msa_structures_path = os.path.join(_msa_path, 'structures') if not LOCAL else _local_pdb_path
-_local_models_path = '/Users/omerronen/Google Drive (omerronen10@gmail.com)/Periscope/models'
-_models_path = f'{_base_path}/src/Periscope/models' if not LOCAL else _local_models_path
-_local_periscope_path = '/Users/omerronen/Documents/Periscope'
-_periscope_path = f'{_base_path}/src/Periscope' if not LOCAL else _local_periscope_path
-_drive_path = '/Users/omerronen/Google Drive (omerronen10@gmail.com)/Periscope'
-_data_path = os.path.join(_drive_path, 'data') if LOCAL else os.path.join(_periscope_path, 'data')
+# LOCAL = '/Users/omerronen/Documents/Periscope' in os.getcwd()
+# _base_path = '/vol/sci/bio/data/or.zuk/projects/ContactMaps'
+# _msa_path = f'{_base_path}/data/MSA_Completion/msa_data'
+# _local_pdb_path = '/Users/omerronen/Documents/Periscope/data/pdb'
+# _msa_structures_path = os.path.join(_msa_path, 'structures') if not LOCAL else _local_pdb_path
+# _local_models_path = '/Users/omerronen/Google Drive (omerronen10@gmail.com)/Periscope/models'
+# _models_path = f'{_base_path}/src/Periscope/models' if not LOCAL else _local_models_path
+# _local_periscope_path = '/Users/omerronen/Documents/Periscope'
+# _periscope_path = f'{_base_path}/src/Periscope' if not LOCAL else _local_periscope_path
+# _drive_path = '/Users/omerronen/Google Drive (omerronen10@gmail.com)/Periscope'
+# _data_path = os.path.join(_drive_path, 'data') if LOCAL else os.path.join(_periscope_path, 'data')
+
+# A class for all the relevant paths
+# drive - google drive path for saving models and artifacts
+# data - generic path to save data in
+# hhblits - path to store alignment files
+# pdb - path for pdb files
+# modeller - modeller stuff
+# periscope - the curreמt project directory
+# proteins - path for post processing proteins data
+# src - path to other software we need, i.e dssp, convfold raptor
+# raptor - raptor 3d modelling path
+
+
+src = "/Users/omerronen/Documents/Phd/BinProtein"
+prscope_pth = os.path.join(src, "Periscope")
+data_pth = os.path.join(prscope_pth, "data")
+check_path(data_pth)
+hhblits_path = os.path.join(data_pth, "hhblits")
+check_path(hhblits_path)
+pdb_path = os.path.join(data_pth, "pdb")
+check_path(pdb_path)
+modeller_path = os.path.join(prscope_pth, "modeller")
+check_path(modeller_path)
+models_path = os.path.join(prscope_pth, "models")
+check_path(models_path)
+proteins_path = os.path.join(data_pth, "proteins")
+check_path(proteins_path)
+raptor_path = f'{prscope_pth}/src/RaptorX-3DModeling/DL4DistancePrediction4/Scripts'
+ccmpred_path = os.path.join(src,"CCMpred/bin/ccmpred")
+
 Paths = namedtuple(
     'Paths',
-    'drive data msa msa_structures hhblits ccmpred evfold pdb modeller models periscope proteins src raptor')
+    'drive data hhblits pdb modeller models periscope proteins src raptor ccmpred')
 PATHS = Paths(
     drive='/Users/omerronen/Google Drive (omerronen10@gmail.com)/Periscope/models',
-    data=_data_path,
-    msa=f'{_base_path}/data/MSA_Completion/msa_data',
-    msa_structures=_msa_structures_path,
-    hhblits=os.path.join(_msa_path, 'hhblits'),
-    ccmpred=os.path.join(_msa_path, 'ccmpred'),
-    evfold=f'{_base_path}/data/MSA_Completion/msa_data/dca',
-    pdb=os.path.join(_periscope_path, 'data', 'pdb'),
-    modeller=f'{_base_path}/src/Periscope/data/modeller_new',
-    models=_models_path,
-    periscope=_periscope_path,
-    proteins=os.path.join(_periscope_path, 'data', 'proteins'),
-    src=f'{_base_path}/src',
-    raptor=f'{_base_path}/src/RaptorX-3DModeling/DL4DistancePrediction4/Scripts'
+    data=data_pth,
+    hhblits=hhblits_path,
+    pdb=pdb_path,
+    modeller=modeller_path,
+    models=models_path,
+    periscope=prscope_pth,
+    proteins=proteins_path,
+    src=src,
+    raptor=raptor_path,
+    ccmpred=ccmpred_path
 )
 
 PREDICTON_FEATURES = {
@@ -161,26 +197,26 @@ def generate_full_dataset():
 def generate_dataset():
     datasets = Datasets(
         train=
-        yaml_load(os.path.join(PATHS.data, 'valid',
+        yaml_load(os.path.join(PATHS.data,
                                'train.yaml'))['proteins'],
         eval=
-        yaml_load(os.path.join(PATHS.data, 'valid',
+        yaml_load(os.path.join(PATHS.data,
                                'eval.yaml'))['proteins'],
 
         pfam=
-        yaml_load(os.path.join(PATHS.data, 'valid',
+        yaml_load(os.path.join(PATHS.data,
                                'pfam.yaml'))['proteins'],
 
-        cameo=yaml_load(os.path.join(PATHS.data, 'valid',
+        cameo=yaml_load(os.path.join(PATHS.data,
                                      'cameo.yaml'))['proteins'],
 
-        cameo41=yaml_load(os.path.join(PATHS.data, 'valid',
+        cameo41=yaml_load(os.path.join(PATHS.data,
                                        'cameo41.yaml'))['proteins'],
 
-        membrane=yaml_load(os.path.join(PATHS.data, 'valid',
+        membrane=yaml_load(os.path.join(PATHS.data,
                                         'membrane.yaml'))['proteins'],
 
-        testing=['1ej0A', '1hh8A', '1kw4A','1mk0A', '1tqgA', '1fl0A', '1jo8A']
+        testing=['1ej0A', '1hh8A', '1kw4A', '1mk0A', '1tqgA', '1fl0A', '1jo8A']
 
     )
     return datasets

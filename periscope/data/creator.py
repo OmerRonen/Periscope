@@ -83,10 +83,11 @@ class DataCreator:
 
     def generate_data(self):
         self.ccmpred
+        self.raptor_properties
+
         self.aligner.templates_ss_acc_seq_tensor
         self.aligner.templates_distance_tensor
         self.pwm_w
-        self.raptor_properties
 
     @property
     def msa_length(self):
@@ -387,8 +388,7 @@ class DataCreator:
                 convert_to_aln(tmp_name, tmp2_name)
 
                 ccmpred_mat_file = get_target_ccmpred_file(self.target, self._family)
-
-                ccmpred_cmd = f'ccmpred {tmp2_name} {ccmpred_mat_file}'
+                ccmpred_cmd = f'{PATHS.ccmpred} {tmp2_name} {ccmpred_mat_file}'
                 p = subprocess.run(ccmpred_cmd, shell=True)
                 if p.returncode != 0:
                     LOGGER.info(f'CCMpred failed for {self.target}')
@@ -427,7 +427,7 @@ class DataCreator:
 
     def _run_hhblits(self):
         # Generates multiple sequence alignment using hhblits
-        if self.protein.str_seq is None or self._train:
+        if self.protein.str_seq is None:# or self._train:
             return
         seq = Seq(self.protein.str_seq.upper())
 
@@ -444,18 +444,19 @@ class DataCreator:
         output_reformat1 = os.path.join(target_hhblits_path, target + '.a2m')
         output_reformat2 = os.path.join(target_hhblits_path, target + '_v%s.fasta' % version)
 
-        db_hh = '/vol/sci/bio/data/or.zuk/projects/ContactMaps/data/uniref30/UniRef30_2020_06'
+        db_hh = os.path.join(PATHS.hhblits,"scop40")
 
         hhblits_params = '-n 3 -e 1e-3 -maxfilt 10000000000 -neffmax 20 -nodiff -realign_max 10000000000'
 
         hhblits_cmd = f'hhblits -i {query} -d {db_hh} {hhblits_params} -oa3m {output_hhblits}'
         subprocess.run(hhblits_cmd, shell=True)
         # subprocess.run(hhblits_cmd, shell=True, stdout=open(os.devnull, 'wb'))
-        reformat = ['reformat.pl', output_hhblits, output_reformat1]
-        subprocess.run(reformat)
+        reformat_script = os.path.join(PATHS.periscope,'scripts','reformat.pl')
+        reformat = f"perl {reformat_script} {output_hhblits} {output_reformat1}"
+        subprocess.run(reformat, shell=True)
 
-        reformat = ['reformat.pl', output_reformat1, output_reformat2]
-        subprocess.run(reformat)
+        reformat = f"perl {reformat_script} {output_reformat1} {output_reformat2}"
+        subprocess.run(reformat, shell=True)
 
     def run_hhblits_cns(self):
         # Generates multiple sequence alignment using hhblits

@@ -539,6 +539,8 @@ class ContactMapEstimator:
                                    family=family,
                                    **data_generator_args)
 
+        next(data_gen.generator())
+
         def custom_input_fn():
             shapes, types = data_gen.required_shape_types
             dataset = tf.data.Dataset.from_generator(
