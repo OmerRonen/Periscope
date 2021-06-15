@@ -13,3 +13,4 @@ models/nips_model/
 *.pyc
 *workspace.xml
 *__pycache__/
+*__pycache__*

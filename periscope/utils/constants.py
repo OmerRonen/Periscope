@@ -103,8 +103,10 @@ FEATURES_DIMS = {
 # src - path to other software we need, i.e dssp, convfold raptor
 # raptor - raptor 3d modelling path
 
-
-src = "/Users/omerronen/Documents/Phd/BinProtein"
+local = os.system('hostname') == "Omers-MacBook-Pro-2.local"
+local_src = "/Users/omerronen/Documents/Phd/BinProtein"
+stanford_src = "/oak/stanford/groups/euan/proteins"
+src = local_src if local else stanford_src
 prscope_pth = os.path.join(src, "Periscope")
 data_pth = os.path.join(prscope_pth, "data")
 check_path(data_pth)
@@ -119,11 +121,13 @@ check_path(models_path)
 proteins_path = os.path.join(data_pth, "proteins")
 check_path(proteins_path)
 raptor_path = f'{prscope_pth}/src/RaptorX-3DModeling/DL4DistancePrediction4/Scripts'
-ccmpred_path = os.path.join(src,"CCMpred/bin/ccmpred")
+ccmpred_path = os.path.join(src, "CCMpred/bin/ccmpred")
+hh_ds = os.path.join(data_pth, "UniRef30_2020_06")
+
 
 Paths = namedtuple(
     'Paths',
-    'drive data hhblits pdb modeller models periscope proteins src raptor ccmpred')
+    'drive data hhblits pdb modeller models periscope proteins src raptor ccmpred hh_ds')
 PATHS = Paths(
     drive='/Users/omerronen/Google Drive (omerronen10@gmail.com)/Periscope/models',
     data=data_pth,
@@ -135,7 +139,8 @@ PATHS = Paths(
     proteins=proteins_path,
     src=src,
     raptor=raptor_path,
-    ccmpred=ccmpred_path
+    ccmpred=ccmpred_path,
+    hh_ds=hh_ds
 )
 
 PREDICTON_FEATURES = {
